@@ -33,21 +33,21 @@ st.set_page_config(
 #   python3 -c "import hashlib; print(hashlib.sha256('NEWPASS'.encode()).hexdigest())"
 # ─────────────────────────────────────────────────────────────────────────────
 USERS = {
-    "recorder_01": {"name": "Recorder 01", "password_hash": hashlib.sha256("pass01".encode()).hexdigest(), "folder": "recorder_01"},
-    "recorder_02": {"name": "Recorder 02", "password_hash": hashlib.sha256("pass02".encode()).hexdigest(), "folder": "recorder_02"},
-    "recorder_03": {"name": "Recorder 03", "password_hash": hashlib.sha256("pass03".encode()).hexdigest(), "folder": "recorder_03"},
-    "recorder_04": {"name": "Recorder 04", "password_hash": hashlib.sha256("pass04".encode()).hexdigest(), "folder": "recorder_04"},
-    "recorder_05": {"name": "Recorder 05", "password_hash": hashlib.sha256("pass05".encode()).hexdigest(), "folder": "recorder_05"},
-    "recorder_06": {"name": "Recorder 06", "password_hash": hashlib.sha256("pass06".encode()).hexdigest(), "folder": "recorder_06"},
-    "recorder_07": {"name": "Recorder 07", "password_hash": hashlib.sha256("pass07".encode()).hexdigest(), "folder": "recorder_07"},
-    "recorder_08": {"name": "Recorder 08", "password_hash": hashlib.sha256("pass08".encode()).hexdigest(), "folder": "recorder_08"},
-    "recorder_09": {"name": "Recorder 09", "password_hash": hashlib.sha256("pass09".encode()).hexdigest(), "folder": "recorder_09"},
-    "recorder_10": {"name": "Recorder 10", "password_hash": hashlib.sha256("pass10".encode()).hexdigest(), "folder": "recorder_10"},
-    "recorder_11": {"name": "Recorder 11", "password_hash": hashlib.sha256("pass11".encode()).hexdigest(), "folder": "recorder_11"},
-    "recorder_12": {"name": "Recorder 12", "password_hash": hashlib.sha256("pass12".encode()).hexdigest(), "folder": "recorder_12"},
-    "recorder_13": {"name": "Recorder 13", "password_hash": hashlib.sha256("pass13".encode()).hexdigest(), "folder": "recorder_13"},
-    "recorder_14": {"name": "Recorder 14", "password_hash": hashlib.sha256("pass14".encode()).hexdigest(), "folder": "recorder_14"},
-    "recorder_15": {"name": "Recorder 15", "password_hash": hashlib.sha256("pass15".encode()).hexdigest(), "folder": "recorder_15"},
+    "recorder_01": {"name": "Recorder 01", "password_hash": hashlib.sha256("lisan@1".encode()).hexdigest(), "folder": "recorder_01"},
+    "recorder_02": {"name": "Recorder 02", "password_hash": hashlib.sha256("lisan@2".encode()).hexdigest(), "folder": "recorder_02"},
+    "recorder_03": {"name": "Recorder 03", "password_hash": hashlib.sha256("lisan@3".encode()).hexdigest(), "folder": "recorder_03"},
+    "recorder_04": {"name": "Recorder 04", "password_hash": hashlib.sha256("lisan@4".encode()).hexdigest(), "folder": "recorder_04"},
+    "recorder_05": {"name": "Recorder 05", "password_hash": hashlib.sha256("lisan@5".encode()).hexdigest(), "folder": "recorder_05"},
+    "recorder_06": {"name": "Recorder 06", "password_hash": hashlib.sha256("lisan@6".encode()).hexdigest(), "folder": "recorder_06"},
+    "recorder_07": {"name": "Recorder 07", "password_hash": hashlib.sha256("lisan@7".encode()).hexdigest(), "folder": "recorder_07"},
+    "recorder_08": {"name": "Recorder 08", "password_hash": hashlib.sha256("lisan@8".encode()).hexdigest(), "folder": "recorder_08"},
+    "recorder_09": {"name": "Recorder 09", "password_hash": hashlib.sha256("lisan@9".encode()).hexdigest(), "folder": "recorder_09"},
+    "recorder_10": {"name": "Recorder 10", "password_hash": hashlib.sha256("lisan@10".encode()).hexdigest(), "folder": "recorder_10"},
+    "recorder_11": {"name": "Recorder 11", "password_hash": hashlib.sha256("lisan@11".encode()).hexdigest(), "folder": "recorder_11"},
+    "recorder_12": {"name": "Recorder 12", "password_hash": hashlib.sha256("lisan@12".encode()).hexdigest(), "folder": "recorder_12"},
+    "recorder_13": {"name": "Recorder 13", "password_hash": hashlib.sha256("lisan@13".encode()).hexdigest(), "folder": "recorder_13"},
+    "recorder_14": {"name": "Recorder 14", "password_hash": hashlib.sha256("lisan@14".encode()).hexdigest(), "folder": "recorder_14"},
+    "recorder_15": {"name": "Recorder 15", "password_hash": hashlib.sha256("lisan@15".encode()).hexdigest(), "folder": "recorder_15"},
     "admin":        {"name": "Admin",       "password_hash": hashlib.sha256("admin@lisan".encode()).hexdigest(), "folder": None, "is_admin": True},
 }
 
@@ -56,7 +56,7 @@ USERS = {
 # In Streamlit Cloud: Settings → Secrets → paste your service account JSON
 # Locally: create .streamlit/secrets.toml with [gcp_service_account] section
 # ─────────────────────────────────────────────────────────────────────────────
-ROOT_FOLDER_NAME = "LSD_Data_Collection"   # The folder you created in your Drive
+ROOT_FOLDER_NAME = "TRANSCRIBER_DATASET"   # The folder you created in your Drive
 
 @st.cache_resource
 def get_drive_service():
@@ -265,21 +265,22 @@ strong { color: var(--gold-primary); font-weight: 600; }
 /* Arabic Text Box (Premium Glassmorphism) */
 .arabic-text {
     font-family: 'Amiri', serif !important; 
-    font-size: 2.2rem !important;
-    line-height: 2.2 !important; 
+    font-size: 2.0rem !important;
+    line-height: 1.8 !important; 
     color: #ffffff !important;
     direction: rtl !important; 
     text-align: center !important;
     background: rgba(25, 25, 30, 0.4); 
     border: 1px solid rgba(255,255,255,0.05);
     box-shadow: 0 10px 30px rgba(0,0,0,0.5), inset 0 1px 0 rgba(255,255,255,0.05);
-    padding: 2.5rem;
+    padding: 1.5rem;
     border-radius: 16px; 
-    margin: 1.5rem 0;
+    margin: 1.0rem 0;
     backdrop-filter: blur(12px);
     text-shadow: 0 2px 10px rgba(0,0,0,0.5);
     position: relative;
-    overflow: hidden;
+    overflow-y: auto;
+    max-height: 35vh; /* Fits on a mobile screen with the recorder */
 }
 .arabic-text::before {
     content: ''; position: absolute; top: 0; left: 0; right: 0; height: 1px;
@@ -451,14 +452,6 @@ def show_recorder():
     txt_stem  = Path(txt_name).stem            # e.g. "001"
     audio_name = f"{txt_stem}.webm"            # e.g. "001.webm"  ← SAME NAME
 
-    # ── read text from Drive
-    with st.spinner("Loading text..."):
-        text_content = drive_read_text_file(service, next_txt["id"])
-
-    st.markdown(f'**[ TEXT: `{txt_stem}` ]**')
-    st.markdown(f'<div class="arabic-text">{text_content}</div>', unsafe_allow_html=True)
-    st.markdown("---")
-
     # ── instructions
     st.markdown("""
     <div style="font-size:0.75rem; color:#7a7670; line-height:2;">
@@ -470,7 +463,7 @@ def show_recorder():
     """, unsafe_allow_html=True)
     st.markdown("<br>", unsafe_allow_html=True)
 
-    # ── Native Streamlit audio recorder (no JS hacks)
+    # ── Native Streamlit audio recorder ABOVE the text
     audio_value = st.audio_input(
         "🎙️ Press to record — press again to stop",
         key=f"audio_input_{txt_stem}"
@@ -534,6 +527,15 @@ def show_recorder():
             '⬆ Press the mic button above to start recording</div>',
             unsafe_allow_html=True
         )
+
+    st.markdown("---")
+
+    # ── read text from Drive and display BELOW recorder
+    with st.spinner("Loading text..."):
+        text_content = drive_read_text_file(service, next_txt["id"])
+
+    st.markdown(f'**[ TEXT: `{txt_stem}` ]**')
+    st.markdown(f'<div class="arabic-text">{text_content}</div>', unsafe_allow_html=True)
 
     # ── sidebar progress list
     with st.sidebar:
