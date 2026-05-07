@@ -178,31 +178,30 @@ st.markdown("""
 @import url('https://fonts.googleapis.com/css2?family=Amiri:ital,wght@0,400;0,700;1,400&family=Inter:wght@300;400;500;600;700&display=swap');
 
 :root {
-    --bg-dark: #0a0a0c; 
-    --bg-panel: rgba(20, 20, 23, 0.7);
-    --border-color: rgba(255, 255, 255, 0.08);
-    --gold-primary: #d4af37;
-    --gold-glow: rgba(212, 175, 55, 0.3);
-    --text-main: #f0f0f2;
-    --text-muted: #8b8b99;
-    --accent-success: #10b981;
-    --accent-error: #ef4444;
+    --bg-main: #f3f4f6; 
+    --bg-panel: rgba(255, 255, 255, 0.85);
+    --border-color: rgba(0, 0, 0, 0.08);
+    --gold-primary: #b8860b; /* Dark goldenrod for contrast */
+    --gold-glow: rgba(184, 134, 11, 0.15);
+    --text-main: #1f2937;
+    --text-muted: #6b7280;
+    --accent-success: #059669;
 }
 
 /* Base Global Styles */
 html, body, [data-testid="stAppViewContainer"] {
-    background-color: var(--bg-dark) !important; 
+    background-color: var(--bg-main) !important; 
     color: var(--text-main) !important;
     font-family: 'Inter', sans-serif !important;
 }
 
-/* Animated Gradient Background */
+/* Animated Soft Background */
 [data-testid="stAppViewContainer"]::before {
     content: "";
     position: fixed;
     top: -50%; left: -50%; width: 200%; height: 200%;
-    background: radial-gradient(circle at 50% 50%, rgba(212, 175, 55, 0.03) 0%, transparent 60%),
-                radial-gradient(circle at 80% 20%, rgba(212, 175, 55, 0.02) 0%, transparent 40%);
+    background: radial-gradient(circle at 50% 50%, rgba(184, 134, 11, 0.04) 0%, transparent 60%),
+                radial-gradient(circle at 80% 20%, rgba(184, 134, 11, 0.03) 0%, transparent 40%);
     z-index: -1;
     animation: slowSpin 60s linear infinite;
 }
@@ -215,76 +214,72 @@ html, body, [data-testid="stAppViewContainer"] {
 
 /* Inputs */
 .stTextInput input {
-    background: rgba(10, 10, 12, 0.8) !important; 
+    background: rgba(255, 255, 255, 0.9) !important; 
     color: var(--text-main) !important;
     border: 1px solid var(--border-color) !important; 
     border-radius: 8px !important;
     font-family: 'Inter', sans-serif !important;
     padding: 0.75rem 1rem !important;
     transition: all 0.3s ease !important;
-    backdrop-filter: blur(10px);
+    box-shadow: inset 0 2px 4px rgba(0,0,0,0.02);
 }
 .stTextInput input:focus { 
     border-color: var(--gold-primary) !important; 
-    box-shadow: 0 0 15px var(--gold-glow) !important; 
-    background: rgba(20, 20, 24, 0.9) !important;
+    box-shadow: 0 0 10px var(--gold-glow), inset 0 2px 4px rgba(0,0,0,0.02) !important; 
+    background: #ffffff !important;
 }
 
 /* Premium Buttons */
 .stButton > button {
-    background: linear-gradient(135deg, rgba(212,175,55,0.1) 0%, transparent 100%) !important;
+    background: #ffffff !important;
     color: var(--gold-primary) !important;
-    border: 1px solid rgba(212, 175, 55, 0.4) !important; 
+    border: 1px solid rgba(184, 134, 11, 0.4) !important; 
     border-radius: 8px !important;
     font-family: 'Inter', sans-serif !important; 
     font-weight: 600 !important;
-    letter-spacing: 0.08em !important; 
+    letter-spacing: 0.05em !important; 
     text-transform: uppercase;
     padding: 0.6rem 1.5rem !important;
-    transition: all 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275) !important;
-    backdrop-filter: blur(4px);
+    transition: all 0.3s ease !important;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.04);
 }
 .stButton > button:hover { 
     background: var(--gold-primary) !important; 
-    color: var(--bg-dark) !important; 
+    color: #ffffff !important; 
     border-color: var(--gold-primary) !important;
-    box-shadow: 0 5px 20px var(--gold-glow), inset 0 0 10px rgba(255,255,255,0.2) !important;
+    box-shadow: 0 4px 15px var(--gold-glow) !important;
     transform: translateY(-2px);
 }
 .stButton > button:active { transform: translateY(1px); }
 
 /* Progress Bar */
-.stProgress > div > div > div > div { background-color: var(--gold-primary) !important; background-image: linear-gradient(90deg, rgba(255,255,255,0) 0%, rgba(255,255,255,0.2) 50%, rgba(255,255,255,0) 100%); background-size: 200% 100%; animation: shimmer 2s infinite linear; }
-@keyframes shimmer { to { background-position: 200% 0; } }
+.stProgress > div > div > div > div { background-color: var(--gold-primary) !important; }
 
 /* Text & Typography */
 hr { border-color: var(--border-color) !important; margin: 2rem 0; }
-label, .stMarkdown p { color: var(--text-muted) !important; font-size: 0.9rem !important; font-weight: 400; }
+label, .stMarkdown p { color: var(--text-main) !important; font-size: 0.95rem !important; font-weight: 400; }
 strong { color: var(--gold-primary); font-weight: 600; }
 
-/* Arabic Text Box (Premium Glassmorphism) */
+/* Arabic Text Box (Premium Light Glassmorphism) */
 .arabic-text {
     font-family: 'Amiri', serif !important; 
-    font-size: 2.0rem !important;
-    line-height: 1.8 !important; 
-    color: #ffffff !important;
+    font-size: 2.2rem !important;
+    line-height: 2.0 !important; 
+    color: #111827 !important; /* Very dark slate for high readability */
     direction: rtl !important; 
     text-align: center !important;
-    background: rgba(25, 25, 30, 0.4); 
-    border: 1px solid rgba(255,255,255,0.05);
-    box-shadow: 0 10px 30px rgba(0,0,0,0.5), inset 0 1px 0 rgba(255,255,255,0.05);
-    padding: 1.5rem;
+    background: #ffffff; 
+    border: 1px solid rgba(0,0,0,0.05);
+    box-shadow: 0 10px 30px rgba(0,0,0,0.06);
+    padding: 2.5rem;
     border-radius: 16px; 
     margin: 1.0rem 0;
-    backdrop-filter: blur(12px);
-    text-shadow: 0 2px 10px rgba(0,0,0,0.5);
     position: relative;
-    overflow-y: auto;
-    max-height: 35vh; /* Fits on a mobile screen with the recorder */
+    /* Removed max-height so text appears fully without a scroll box */
 }
 .arabic-text::before {
-    content: ''; position: absolute; top: 0; left: 0; right: 0; height: 1px;
-    background: linear-gradient(90deg, transparent, var(--gold-primary), transparent); opacity: 0.3;
+    content: ''; position: absolute; top: 0; left: 0; right: 0; height: 3px;
+    background: linear-gradient(90deg, transparent, var(--gold-primary), transparent); opacity: 0.8;
 }
 
 /* Cards & Containers */
@@ -295,22 +290,22 @@ strong { color: var(--gold-primary); font-weight: 600; }
     padding: 2rem; 
     margin: 1rem 0;
     backdrop-filter: blur(10px);
-    box-shadow: 0 8px 32px rgba(0,0,0,0.3);
+    box-shadow: 0 4px 20px rgba(0,0,0,0.05);
 }
 
 /* Stats */
 .stat-box { 
     text-align: center; 
-    background: linear-gradient(180deg, rgba(30,30,35,0.6) 0%, rgba(20,20,23,0.8) 100%); 
+    background: #ffffff; 
     border: 1px solid var(--border-color); 
     border-radius: 12px; 
     padding: 1.5rem 1rem; 
-    backdrop-filter: blur(8px);
+    box-shadow: 0 2px 10px rgba(0,0,0,0.03);
     transition: transform 0.3s ease, border-color 0.3s ease;
 }
-.stat-box:hover { transform: translateY(-5px); border-color: rgba(212, 175, 55, 0.3); }
-.stat-num { font-size: 2.5rem; font-weight: 700; color: var(--gold-primary); line-height: 1; margin-bottom: 0.5rem; text-shadow: 0 0 20px var(--gold-glow); }
-.stat-label { font-size: 0.75rem; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.15em; font-weight: 500; }
+.stat-box:hover { transform: translateY(-5px); border-color: rgba(184, 134, 11, 0.4); }
+.stat-num { font-size: 2.5rem; font-weight: 700; color: var(--gold-primary); line-height: 1; margin-bottom: 0.5rem; }
+.stat-label { font-size: 0.75rem; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.15em; font-weight: 600; }
 
 /* Headers */
 .title-main { 
@@ -318,16 +313,15 @@ strong { color: var(--gold-primary); font-weight: 600; }
     font-size: 3rem; 
     color: var(--gold-primary); 
     text-align: center;
-    text-shadow: 0 0 30px var(--gold-glow);
     margin-bottom: 0.2rem;
 }
 .subtitle { 
-    font-size: 0.8rem; 
+    font-size: 0.85rem; 
     color: var(--text-muted); 
     text-align: center; 
-    letter-spacing: 0.25em; 
+    letter-spacing: 0.2em; 
     text-transform: uppercase; 
-    font-weight: 500;
+    font-weight: 600;
 }
 
 /* Badges */
@@ -335,18 +329,19 @@ strong { color: var(--gold-primary); font-weight: 600; }
     display: inline-block; padding: 0.25rem 0.6rem; border-radius: 4px; 
     font-size: 0.65rem; font-weight: 700; letter-spacing: 0.1em; text-transform: uppercase; 
 }
-.done { background: rgba(16,185,129,0.1); color: var(--accent-success); border: 1px solid rgba(16,185,129,0.2); }
-.now { background: rgba(212,175,55,0.1); color: var(--gold-primary); border: 1px solid rgba(212,175,55,0.3); box-shadow: 0 0 10px rgba(212,175,55,0.1); animation: pulse 2s infinite; }
-.pending { color: #555560; }
+.done { background: rgba(5,150,105,0.1); color: var(--accent-success); border: 1px solid rgba(5,150,105,0.2); }
+.now { background: rgba(184,134,11,0.1); color: var(--gold-primary); border: 1px solid rgba(184,134,11,0.3); animation: pulse 2s infinite; }
+.pending { color: #9ca3af; }
 
-@keyframes pulse { 0% { box-shadow: 0 0 0 0 rgba(212,175,55,0.2); } 70% { box-shadow: 0 0 0 6px rgba(212,175,55,0); } 100% { box-shadow: 0 0 0 0 rgba(212,175,55,0); } }
+@keyframes pulse { 0% { box-shadow: 0 0 0 0 rgba(184,134,11,0.2); } 70% { box-shadow: 0 0 0 6px rgba(184,134,11,0); } 100% { box-shadow: 0 0 0 0 rgba(184,134,11,0); } }
 
 /* Audio Input UI override */
 [data-testid="stAudioInput"] {
-    background: var(--bg-panel);
+    background: #ffffff;
     border: 1px solid var(--border-color);
     border-radius: 12px;
-    padding: 1rem;
+    padding: 1.5rem;
+    box-shadow: 0 4px 15px rgba(0,0,0,0.03);
 }
 </style>
 """, unsafe_allow_html=True)
