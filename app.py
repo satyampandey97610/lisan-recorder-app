@@ -8,6 +8,7 @@ import io
 import os
 import tempfile
 import wave
+import time
 from datetime import datetime
 from pathlib import Path
 
@@ -143,23 +144,37 @@ def drive_upload_audio(service, audio_bytes, filename, folder_id, mime_type="aud
 @st.cache_data(ttl=300)
 def get_folder_ids(user_folder_name):
     """Return (root_id, user_id, texts_id, audios_id) for a recorder."""
-    service = get_drive_service()
-    root_id    = drive_get_or_create_folder(service, ROOT_FOLDER_NAME)
-    user_id_f  = drive_get_or_create_folder(service, user_folder_name, root_id)
-    texts_id   = drive_get_or_create_folder(service, "texts",  user_id_f)
-    audios_id  = drive_get_or_create_folder(service, "audios", user_id_f)
-    return root_id, user_id_f, texts_id, audios_id
+    for attempt in range(3):
+        try:
+            service = get_drive_service()
+            root_id    = drive_get_or_create_folder(service, ROOT_FOLDER_NAME)
+            user_id_f  = drive_get_or_create_folder(service, user_folder_name, root_id)
+            texts_id   = drive_get_or_create_folder(service, "texts",  user_id_f)
+            audios_id  = drive_get_or_create_folder(service, "audios", user_id_f)
+            return root_id, user_id_f, texts_id, audios_id
+        except Exception as e:
+            if attempt == 2: raise e
+            time.sleep(1)
 
 @st.cache_data(ttl=60)
 def get_text_files(texts_folder_id):
-    service = get_drive_service()
-    return drive_list_files(service, texts_folder_id, ".txt")
+    for attempt in range(3):
+        try:
+            service = get_drive_service()
+            return drive_list_files(service, texts_folder_id, ".txt")
+        except Exception as e:
+            if attempt == 2: raise e
+            time.sleep(1)
 
 @st.cache_data(ttl=60)
 def get_audio_files(audios_folder_id):
-    service = get_drive_service()
-    # empty string for extension grabs all files
-    return drive_list_files(service, audios_folder_id, "")
+    for attempt in range(3):
+        try:
+            service = get_drive_service()
+            return drive_list_files(service, audios_folder_id, "")
+        except Exception as e:
+            if attempt == 2: raise e
+            time.sleep(1)
 
 # ─────────────────────────────────────────────────────────────────────────────
 # AUTH
