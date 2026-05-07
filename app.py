@@ -7,6 +7,7 @@ import json
 import io
 import os
 import tempfile
+import wave
 from datetime import datetime
 from pathlib import Path
 
@@ -476,42 +477,57 @@ def show_recorder():
     )
 
     if audio_value is not None:
-        # Show preview
-        st.markdown("**▶ Preview your recording:**")
-        st.audio(audio_value)
-        st.markdown("<br>", unsafe_allow_html=True)
-
-        col1, col2 = st.columns(2)
-        with col1:
-            upload_btn = st.button(
-                "☁️ UPLOAD TO DRIVE & NEXT",
-                key=f"upload_btn_{txt_stem}",
-                use_container_width=True
-            )
-        with col2:
-            st.button(
-                "↺ RE-RECORD (press mic again)",
-                key=f"rerecord_hint_{txt_stem}",
-                use_container_width=True,
-                disabled=True
-            )
-
-        if upload_btn:
-            audio_bytes = audio_value.read()
-            final_name  = f"{txt_stem}.wav"   # st.audio_input returns wav
+        audio_bytes = audio_value.read()
+        
+        # ── Check Audio Duration
+        try:
+            with wave.open(io.BytesIO(audio_bytes), 'rb') as f:
+                frames = f.getnframes()
+                rate = f.getframerate()
+                duration = frames / float(rate)
+        except:
+            duration = 0
             
-            try:
-                with st.spinner(f"⏳ Uploading {final_name} to your Google Drive..."):
-                    drive_upload_audio(service, audio_bytes, final_name, audios_folder_id, "audio/wav")
-                    # Clear caches so we fetch the updated lists from Drive
-                    get_text_files.clear()
-                    get_audio_files.clear()
-                st.success(f"✅ {final_name} saved to YOUR Google Drive! Loading next text...")
-                import time; time.sleep(1.5)
-                st.rerun()
-            except Exception as e:
-                st.error(f"❌ Upload failed: {str(e)}")
-                st.info("Please wait a moment and click upload again.")
+        st.markdown("**▶ Preview your recording:**")
+        st.audio(audio_bytes)
+        
+        if duration > 30.5:  # giving 0.5s buffer
+            st.error(f"❌ Recording is too long ({int(duration)} seconds). The maximum allowed is 30 seconds.")
+            st.warning("Please click the mic button above to re-record a shorter version.")
+        else:
+            st.markdown(f'<div style="color:#10b981; font-size:0.8rem;">✓ Perfect length: {duration:.1f} seconds</div>', unsafe_allow_html=True)
+            st.markdown("<br>", unsafe_allow_html=True)
+
+            col1, col2 = st.columns(2)
+            with col1:
+                upload_btn = st.button(
+                    "☁️ UPLOAD TO DRIVE & NEXT",
+                    key=f"upload_btn_{txt_stem}",
+                    use_container_width=True
+                )
+            with col2:
+                st.button(
+                    "↺ RE-RECORD (press mic again)",
+                    key=f"rerecord_hint_{txt_stem}",
+                    use_container_width=True,
+                    disabled=True
+                )
+
+            if upload_btn:
+                final_name  = f"{txt_stem}.wav"   # st.audio_input returns wav
+                
+                try:
+                    with st.spinner(f"⏳ Uploading {final_name} to your Google Drive..."):
+                        drive_upload_audio(service, audio_bytes, final_name, audios_folder_id, "audio/wav")
+                        # Clear caches so we fetch the updated lists from Drive
+                        get_text_files.clear()
+                        get_audio_files.clear()
+                    st.success(f"✅ {final_name} saved to YOUR Google Drive! Loading next text...")
+                    import time; time.sleep(1.5)
+                    st.rerun()
+                except Exception as e:
+                    st.error(f"❌ Upload failed: {str(e)}")
+                    st.info("Please wait a moment and click upload again.")
     else:
         st.markdown(
             '<div style="color:#7a7670;font-size:0.78rem;margin-top:0.5rem;">'
