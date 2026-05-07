@@ -1,0 +1,122 @@
+# SETUP GUIDE — Lisan ud Dawat Recording System
+# ══════════════════════════════════════════════
+
+## STEP 1 — Google Cloud Project (5 min)
+
+1. Go to https://console.cloud.google.com
+2. Create a new project (e.g. "lisan-dataset")
+3. Go to: APIs & Services → Enable APIs
+   → Search "Google Drive API" → Enable it
+4. Go to: IAM & Admin → Service Accounts → Create Service Account
+   - Name: lisan-recorder
+   - Click CREATE
+   - Skip role assignment → DONE
+5. Click on your new service account → KEYS tab
+   → Add Key → Create New Key → JSON → Download
+   Keep this JSON file safe!
+6. Open the JSON file — copy the "client_email" value
+   It looks like: lisan-recorder@your-project.iam.gserviceaccount.com
+
+
+## STEP 2 — Google Drive Setup (3 min)
+
+1. Go to your Google Drive (drive.google.com)
+2. Create a folder called exactly:  lisan_dataset
+3. Right-click lisan_dataset → Share
+   → Paste the service account email from Step 1
+   → Give it "Editor" access → Send
+4. Inside lisan_dataset, create 10 folders:
+   recorder_01, recorder_02, ... recorder_10
+5. Inside each recorder folder, create 2 subfolders:
+   texts       ← you will put .txt files here
+   audios      ← recordings save here automatically
+
+   Final structure:
+   lisan_dataset/
+   ├── recorder_01/
+   │   ├── texts/     ← upload 001.txt, 002.txt, 003.txt ...
+   │   └── audios/    ← 001.webm, 002.webm ... auto-saved here
+   ├── recorder_02/
+   │   ├── texts/
+   │   └── audios/
+   └── ...
+
+
+## STEP 3 — Upload Text Files
+
+For each recorder, upload their .txt files to:
+   lisan_dataset/recorder_XX/texts/
+
+Naming convention: 001.txt, 002.txt, 003.txt ...
+(audio will be saved as 001.webm, 002.webm etc.)
+
+IMPORTANT: Keep text to ~30-60 words (15-25 seconds of speech)
+
+
+## STEP 4 — Configure Secrets
+
+Open .streamlit/secrets.toml
+Copy all values from your downloaded JSON key file:
+
+[gcp_service_account]
+type = "service_account"
+project_id = "..."
+private_key_id = "..."
+private_key = "-----BEGIN RSA PRIVATE KEY-----\n...\n-----END RSA PRIVATE KEY-----\n"
+client_email = "..."
+client_id = "..."
+... (rest of fields)
+
+
+## STEP 5A — Run Locally
+
+pip install -r requirements.txt
+streamlit run app.py
+→ Opens at http://localhost:8501
+
+
+## STEP 5B — Deploy to Streamlit Cloud (Free, Public URL)
+
+1. Push this folder to GitHub (public or private repo)
+2. Go to https://share.streamlit.io → New App
+3. Select your repo → branch → app.py
+4. Click "Advanced settings" → Secrets
+   → Paste the entire contents of your secrets.toml
+5. Click Deploy
+6. Share the URL with your 10 recorders!
+
+
+## DEFAULT CREDENTIALS
+
+| Username     | Password    |
+|-------------|-------------|
+| recorder_01 | pass01      |
+| recorder_02 | pass02      |
+| ...         | ...         |
+| recorder_10 | pass10      |
+| admin       | admin@lisan |
+
+To change passwords, generate a new SHA256 hash:
+  python3 -c "import hashlib; print(hashlib.sha256('NEWPASSWORD'.encode()).hexdigest())"
+Then replace password_hash in USERS dict in app.py.
+
+
+## HOW RECORDING WORKS
+
+1. Recorder logs in
+2. Their next unrecorded text appears automatically
+3. They use the browser mic recorder (30-sec limit)
+4. Recording auto-downloads to their computer
+5. They upload it in the file uploader
+6. Click "Upload to Drive" → saved as 001.webm in their audios/ folder
+7. Next text loads automatically
+8. If bad recording → click Re-record → redo from step 3
+
+
+## AUDIO NAMING
+
+Text file: 001.txt → Audio saved as: 001.webm
+Text file: 042.txt → Audio saved as: 042.webm
+Text file: text_001.txt → Audio saved as: text_001.webm
+
+The stem of the text filename = the audio filename. Always.
