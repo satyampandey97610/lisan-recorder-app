@@ -134,34 +134,7 @@ def drive_upload_audio(service, audio_bytes, filename, folder_id, mime_type="aud
     file = service.files().create(body=meta, media_body=media, fields="id,name").execute()
     return file
 
-def drive_get_progress_file(service, folder_id):
-    """Read progress.json from a folder."""
-    q = f"'{folder_id}' in parents and name='progress.json' and trashed=false"
-    res = service.files().list(q=q, fields="files(id)").execute()
-    files = res.get("files", [])
-    if not files:
-        return {}
-    fid = files[0]["id"]
-    request = service.files().get_media(fileId=fid)
-    buf = io.BytesIO()
-    downloader = MediaIoBaseDownload(buf, request)
-    done = False
-    while not done:
-        _, done = downloader.next_chunk()
-    return json.loads(buf.getvalue().decode("utf-8"))
 
-def drive_save_progress_file(service, folder_id, progress_dict):
-    """Save/update progress.json in a folder."""
-    content = json.dumps(progress_dict, indent=2).encode("utf-8")
-    q = f"'{folder_id}' in parents and name='progress.json' and trashed=false"
-    res = service.files().list(q=q, fields="files(id)").execute()
-    files = res.get("files", [])
-    media = MediaIoBaseUpload(io.BytesIO(content), mimetype="application/json")
-    if files:
-        service.files().update(fileId=files[0]["id"], media_body=media).execute()
-    else:
-        meta = {"name": "progress.json", "parents": [folder_id]}
-        service.files().create(body=meta, media_body=media, fields="id").execute()
 
 # ─────────────────────────────────────────────────────────────────────────────
 # FOLDER ID CACHE  (so we don't re-query Drive on every rerun)
@@ -526,14 +499,19 @@ def show_recorder():
         if upload_btn:
             audio_bytes = audio_value.read()
             final_name  = f"{txt_stem}.wav"   # st.audio_input returns wav
-            with st.spinner(f"⏳ Uploading {final_name} to your Google Drive..."):
-                drive_upload_audio(service, audio_bytes, final_name, audios_folder_id, "audio/wav")
-                # Clear caches so we fetch the updated lists from Drive
-                get_text_files.clear()
-                get_audio_files.clear()
-            st.success(f"✅ {final_name} saved to YOUR Google Drive! Loading next text...")
-            import time; time.sleep(1.5)
-            st.rerun()
+            
+            try:
+                with st.spinner(f"⏳ Uploading {final_name} to your Google Drive..."):
+                    drive_upload_audio(service, audio_bytes, final_name, audios_folder_id, "audio/wav")
+                    # Clear caches so we fetch the updated lists from Drive
+                    get_text_files.clear()
+                    get_audio_files.clear()
+                st.success(f"✅ {final_name} saved to YOUR Google Drive! Loading next text...")
+                import time; time.sleep(1.5)
+                st.rerun()
+            except Exception as e:
+                st.error(f"❌ Upload failed: {str(e)}")
+                st.info("Please wait a moment and click upload again.")
     else:
         st.markdown(
             '<div style="color:#7a7670;font-size:0.78rem;margin-top:0.5rem;">'
