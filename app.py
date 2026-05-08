@@ -139,11 +139,26 @@ def drive_file_exists(service, folder_id, filename):
     return len(res.get("files", [])) > 0
 
 def drive_upload_audio(service, audio_bytes, filename, folder_id, mime_type="audio/webm"):
-    """Upload audio bytes to a specific Drive folder."""
+    """Upload audio bytes to a specific Drive folder. Overwrites if exists."""
+    q = f"'{folder_id}' in parents and name='{filename}' and trashed=false"
+    res = service.files().list(q=q, fields="files(id)").execute()
+    existing = res.get("files", [])
+    
     media = MediaIoBaseUpload(io.BytesIO(audio_bytes), mimetype=mime_type, resumable=False)
-    meta = {"name": filename, "parents": [folder_id]}
-    file = service.files().create(body=meta, media_body=media, fields="id,name").execute()
-    return file
+    
+    if existing:
+        # Overwrite the first existing file
+        file = service.files().update(fileId=existing[0]["id"], media_body=media, fields="id,name").execute()
+        # Clean up any accidental duplicates
+        for dup in existing[1:]:
+            try: service.files().delete(fileId=dup["id"]).execute()
+            except: pass
+        return file
+    else:
+        # Create new
+        meta = {"name": filename, "parents": [folder_id]}
+        file = service.files().create(body=meta, media_body=media, fields="id,name").execute()
+        return file
 
 def drive_delete_file(service, file_id):
     """Permanently delete a file from Drive (used on reject)."""
@@ -441,8 +456,8 @@ def show_recorder():
 
     # ── calculate progress directly from Drive folders
     total = len(text_files)
-    # Get stems of all uploaded audio files (e.g., "001.wav" -> "001")
-    done_stems = {Path(af["name"]).stem for af in audio_files}
+    # Get stems of all uploaded audio files (e.g., "001.wav" -> "001"), ignoring review file
+    done_stems = {Path(af["name"]).stem for af in audio_files if not af["name"].endswith(".json")}
     
     # A text is done if its stem exists in the audio folder
     done_set = {tf["name"] for tf in text_files if Path(tf["name"]).stem in done_stems}
