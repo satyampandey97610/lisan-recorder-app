@@ -34,22 +34,24 @@ st.set_page_config(
 #   python3 -c "import hashlib; print(hashlib.sha256('NEWPASS'.encode()).hexdigest())"
 # ─────────────────────────────────────────────────────────────────────────────
 USERS = {
-    "recorder_01": {"name": "Recorder 01", "password_hash": hashlib.sha256("lisan@1".encode()).hexdigest(), "folder": "recorder_01"},
-    "recorder_02": {"name": "Recorder 02", "password_hash": hashlib.sha256("lisan@2".encode()).hexdigest(), "folder": "recorder_02"},
-    "recorder_03": {"name": "Recorder 03", "password_hash": hashlib.sha256("lisan@3".encode()).hexdigest(), "folder": "recorder_03"},
-    "recorder_04": {"name": "Recorder 04", "password_hash": hashlib.sha256("lisan@4".encode()).hexdigest(), "folder": "recorder_04"},
-    "recorder_05": {"name": "Recorder 05", "password_hash": hashlib.sha256("lisan@5".encode()).hexdigest(), "folder": "recorder_05"},
-    "recorder_06": {"name": "Recorder 06", "password_hash": hashlib.sha256("lisan@6".encode()).hexdigest(), "folder": "recorder_06"},
-    "recorder_07": {"name": "Recorder 07", "password_hash": hashlib.sha256("lisan@7".encode()).hexdigest(), "folder": "recorder_07"},
-    "recorder_08": {"name": "Recorder 08", "password_hash": hashlib.sha256("lisan@8".encode()).hexdigest(), "folder": "recorder_08"},
-    "recorder_09": {"name": "Recorder 09", "password_hash": hashlib.sha256("lisan@9".encode()).hexdigest(), "folder": "recorder_09"},
-    "recorder_10": {"name": "Recorder 10", "password_hash": hashlib.sha256("lisan@10".encode()).hexdigest(), "folder": "recorder_10"},
-    "recorder_11": {"name": "Recorder 11", "password_hash": hashlib.sha256("lisan@11".encode()).hexdigest(), "folder": "recorder_11"},
-    "recorder_12": {"name": "Recorder 12", "password_hash": hashlib.sha256("lisan@12".encode()).hexdigest(), "folder": "recorder_12"},
-    "recorder_13": {"name": "Recorder 13", "password_hash": hashlib.sha256("lisan@13".encode()).hexdigest(), "folder": "recorder_13"},
-    "recorder_14": {"name": "Recorder 14", "password_hash": hashlib.sha256("lisan@14".encode()).hexdigest(), "folder": "recorder_14"},
-    "recorder_15": {"name": "Recorder 15", "password_hash": hashlib.sha256("lisan@15".encode()).hexdigest(), "folder": "recorder_15"},
-    "admin":        {"name": "Admin",       "password_hash": hashlib.sha256("admin@lisan".encode()).hexdigest(), "folder": None, "is_admin": True},
+    # Passwords are unique per recorder — share each row ONLY with that person
+    # Format: memorable word + separator + unique code
+    "recorder_01": {"name": "Recorder 01", "password_hash": hashlib.sha256("Falak#7mw9".encode()).hexdigest(), "folder": "recorder_01"},
+    "recorder_02": {"name": "Recorder 02", "password_hash": hashlib.sha256("Zarqa!4nt2".encode()).hexdigest(), "folder": "recorder_02"},
+    "recorder_03": {"name": "Recorder 03", "password_hash": hashlib.sha256("Noor$8vk3x".encode()).hexdigest(), "folder": "recorder_03"},
+    "recorder_04": {"name": "Recorder 04", "password_hash": hashlib.sha256("Dawat%6ry1".encode()).hexdigest(), "folder": "recorder_04"},
+    "recorder_05": {"name": "Recorder 05", "password_hash": hashlib.sha256("Qalam@3bz7".encode()).hexdigest(), "folder": "recorder_05"},
+    "recorder_06": {"name": "Recorder 06", "password_hash": hashlib.sha256("Ilm#5ph2w".encode()).hexdigest(),  "folder": "recorder_06"},
+    "recorder_07": {"name": "Recorder 07", "password_hash": hashlib.sha256("Safar!9dj4".encode()).hexdigest(), "folder": "recorder_07"},
+    "recorder_08": {"name": "Recorder 08", "password_hash": hashlib.sha256("Huda$2cx6q".encode()).hexdigest(), "folder": "recorder_08"},
+    "recorder_09": {"name": "Recorder 09", "password_hash": hashlib.sha256("Badar%7ym5".encode()).hexdigest(), "folder": "recorder_09"},
+    "recorder_10": {"name": "Recorder 10", "password_hash": hashlib.sha256("Zikr@1wf8n".encode()).hexdigest(), "folder": "recorder_10"},
+    "recorder_11": {"name": "Recorder 11", "password_hash": hashlib.sha256("Lisan#4kp3".encode()).hexdigest(), "folder": "recorder_11"},
+    "recorder_12": {"name": "Recorder 12", "password_hash": hashlib.sha256("Kitab!6tz9".encode()).hexdigest(), "folder": "recorder_12"},
+    "recorder_13": {"name": "Recorder 13", "password_hash": hashlib.sha256("Rawh$3mj7v".encode()).hexdigest(), "folder": "recorder_13"},
+    "recorder_14": {"name": "Recorder 14", "password_hash": hashlib.sha256("Sunn%8rx2g".encode()).hexdigest(), "folder": "recorder_14"},
+    "recorder_15": {"name": "Recorder 15", "password_hash": hashlib.sha256("Hilal@5nb1".encode()).hexdigest(), "folder": "recorder_15"},
+    "admin":        {"name": "Admin",       "password_hash": hashlib.sha256("LisanAdmin#2025".encode()).hexdigest(), "folder": None, "is_admin": True},
 }
 
 # ─────────────────────────────────────────────────────────────────────────────
@@ -560,58 +562,306 @@ def show_recorder():
                 st.markdown(f'<span class="pending">○</span> `{stem}`', unsafe_allow_html=True)
 
 # ═════════════════════════════════════════════════════════════════════════════
-# ADMIN
+# ADMIN HELPERS — review status stored as JSON in Drive (audio never deleted)
 # ═════════════════════════════════════════════════════════════════════════════
-def show_admin():
-    service = get_drive_service()
-    st.markdown('<div class="title-main">Admin Dashboard</div>', unsafe_allow_html=True)
-    st.markdown('<div class="subtitle">Lisan ud Dawat — Collection Progress</div>', unsafe_allow_html=True)
-    st.markdown("<br>", unsafe_allow_html=True)
+REVIEW_FILENAME = "_review_status.json"
 
-    if st.button("→ LOGOUT"):
-        st.session_state.logged_in = False
-        st.session_state.user_id = None
+def admin_load_review(service, audios_folder_id):
+    """Load the review JSON from Drive. Returns dict {stem: 'approved'|'rejected'}."""
+    q = f"'{audios_folder_id}' in parents and name='{REVIEW_FILENAME}' and trashed=false"
+    res = service.files().list(q=q, fields="files(id)").execute()
+    files = res.get("files", [])
+    if not files:
+        return {}
+    fid = files[0]["id"]
+    request = service.files().get_media(fileId=fid)
+    buf = io.BytesIO()
+    downloader = MediaIoBaseDownload(buf, request)
+    done = False
+    while not done:
+        _, done = downloader.next_chunk()
+    try:
+        return json.loads(buf.getvalue().decode("utf-8"))
+    except Exception:
+        return {}
+
+def admin_save_review(service, audios_folder_id, review_dict):
+    """Save/overwrite the review JSON file in Drive."""
+    data = json.dumps(review_dict, indent=2).encode("utf-8")
+    q = f"'{audios_folder_id}' in parents and name='{REVIEW_FILENAME}' and trashed=false"
+    res = service.files().list(q=q, fields="files(id)").execute()
+    files = res.get("files", [])
+    media = MediaIoBaseUpload(io.BytesIO(data), mimetype="application/json", resumable=False)
+    if files:
+        service.files().update(fileId=files[0]["id"], media_body=media).execute()
+    else:
+        meta = {"name": REVIEW_FILENAME, "parents": [audios_folder_id]}
+        service.files().create(body=meta, media_body=media, fields="id").execute()
+
+def admin_get_audio_bytes(service, file_id):
+    """Stream audio bytes from Drive for playback."""
+    request = service.files().get_media(fileId=file_id)
+    buf = io.BytesIO()
+    downloader = MediaIoBaseDownload(buf, request)
+    done = False
+    while not done:
+        _, done = downloader.next_chunk()
+    return buf.getvalue()
+
+# ═════════════════════════════════════════════════════════════════════════════
+# ADMIN CSS
+# ═════════════════════════════════════════════════════════════════════════════
+st.markdown("""
+<style>
+.admin-recorder-card {
+    background: #ffffff;
+    border: 1px solid rgba(0,0,0,0.07);
+    border-radius: 14px;
+    padding: 1.2rem 1.5rem;
+    margin: 0.5rem 0;
+    box-shadow: 0 2px 12px rgba(0,0,0,0.04);
+    transition: all 0.25s ease;
+    cursor: pointer;
+}
+.admin-recorder-card:hover {
+    border-color: rgba(184,134,11,0.45);
+    box-shadow: 0 6px 20px rgba(184,134,11,0.08);
+    transform: translateY(-2px);
+}
+.admin-audio-row {
+    background: #fafaf8;
+    border: 1px solid rgba(0,0,0,0.06);
+    border-radius: 10px;
+    padding: 1rem 1.2rem;
+    margin: 0.4rem 0;
+}
+.review-approved { color: #059669; font-weight: 700; font-size: 0.78rem; text-transform: uppercase; letter-spacing: 0.1em; }
+.review-rejected { color: #dc2626; font-weight: 700; font-size: 0.78rem; text-transform: uppercase; letter-spacing: 0.1em; }
+.review-pending  { color: #9ca3af; font-weight: 600; font-size: 0.78rem; text-transform: uppercase; letter-spacing: 0.1em; }
+.admin-back-btn { margin-bottom: 1rem; }
+</style>
+""", unsafe_allow_html=True)
+
+# ═════════════════════════════════════════════════════════════════════════════
+# ADMIN — RECORDER DETAIL VIEW
+# ═════════════════════════════════════════════════════════════════════════════
+def show_admin_recorder_detail(uid):
+    """Full detail view for one recorder: all audios, playback, approve/reject."""
+    service = get_drive_service()
+    user = USERS[uid]
+
+    # ── back button
+    if st.button("← Back to Dashboard", key="admin_back"):
+        st.session_state.admin_selected = None
+        get_audio_files.clear()
         st.rerun()
 
+    st.markdown(f'<div class="title-main" style="font-size:2rem;">{user["name"]}</div>', unsafe_allow_html=True)
+    st.markdown(f'<div class="subtitle">Audio Review Panel — {uid}</div>', unsafe_allow_html=True)
+    st.markdown("<br>", unsafe_allow_html=True)
+
+    # ── fetch Drive data
+    with st.spinner("Loading recorder data from Drive..."):
+        _, user_folder_id, texts_folder_id, audios_folder_id = get_folder_ids(user["folder"])
+        texts  = get_text_files(texts_folder_id)
+        audios = get_audio_files(audios_folder_id)
+        # filter out the review JSON itself
+        audios = [a for a in audios if a["name"] != REVIEW_FILENAME]
+        review = admin_load_review(service, audios_folder_id)
+
+    total   = len(texts)
+    done    = len(audios)
+    pct     = int(done / total * 100) if total else 0
+    ap_cnt  = sum(1 for v in review.values() if v == "approved")
+    rj_cnt  = sum(1 for v in review.values() if v == "rejected")
+    pnd_cnt = done - ap_cnt - rj_cnt
+
+    # ── stats row
+    c1, c2, c3, c4, c5 = st.columns(5)
+    for col, num, lbl in [
+        (c1, total, "Total Texts"),
+        (c2, done,  "Uploaded"),
+        (c3, ap_cnt,"Approved"),
+        (c4, rj_cnt,"Rejected"),
+        (c5, pnd_cnt,"Pending Review"),
+    ]:
+        with col:
+            st.markdown(f'<div class="stat-box"><div class="stat-num">{num}</div><div class="stat-label">{lbl}</div></div>', unsafe_allow_html=True)
+
+    st.progress(pct / 100)
+    st.markdown("<br>", unsafe_allow_html=True)
+
+    if not audios:
+        st.info("No audio files uploaded yet by this recorder.")
+        return
+
+    st.markdown("**[ AUDIO FILES — Listen & Review ]**")
+    st.markdown("---")
+
+    # ── per-audio rows
+    for af in sorted(audios, key=lambda x: x["name"]):
+        stem   = Path(af["name"]).stem
+        status = review.get(stem, "pending")
+
+        with st.container():
+            st.markdown(f'<div class="admin-audio-row">', unsafe_allow_html=True)
+            col_name, col_status, col_audio, col_approve, col_reject = st.columns([1.5, 1, 3, 1, 1])
+
+            with col_name:
+                st.markdown(f"**`{af['name']}`**")
+
+            with col_status:
+                if status == "approved":
+                    st.markdown('<span class="review-approved">✓ Approved</span>', unsafe_allow_html=True)
+                elif status == "rejected":
+                    st.markdown('<span class="review-rejected">✗ Rejected</span>', unsafe_allow_html=True)
+                else:
+                    st.markdown('<span class="review-pending">⏳ Pending</span>', unsafe_allow_html=True)
+
+            with col_audio:
+                try:
+                    audio_bytes = admin_get_audio_bytes(service, af["id"])
+                    st.audio(audio_bytes, key=f"play_{uid}_{stem}")
+                except Exception as e:
+                    st.warning(f"Cannot load audio: {e}")
+
+            with col_approve:
+                if st.button("✅ Approve", key=f"approve_{uid}_{stem}",
+                             use_container_width=True,
+                             disabled=(status == "approved")):
+                    review[stem] = "approved"
+                    admin_save_review(service, audios_folder_id, review)
+                    get_audio_files.clear()
+                    st.rerun()
+
+            with col_reject:
+                if st.button("❌ Reject", key=f"reject_{uid}_{stem}",
+                             use_container_width=True,
+                             disabled=(status == "rejected")):
+                    review[stem] = "rejected"
+                    admin_save_review(service, audios_folder_id, review)
+                    get_audio_files.clear()
+                    st.rerun()
+
+            st.markdown('</div>', unsafe_allow_html=True)
+
+    st.markdown("<br>", unsafe_allow_html=True)
+    # ── bulk actions
+    col_ap_all, col_rj_all, col_reset = st.columns(3)
+    with col_ap_all:
+        if st.button("✅ Approve ALL", key=f"approve_all_{uid}", use_container_width=True):
+            for af in audios:
+                review[Path(af["name"]).stem] = "approved"
+            admin_save_review(service, audios_folder_id, review)
+            st.rerun()
+    with col_rj_all:
+        if st.button("❌ Reject ALL", key=f"reject_all_{uid}", use_container_width=True):
+            for af in audios:
+                review[Path(af["name"]).stem] = "rejected"
+            admin_save_review(service, audios_folder_id, review)
+            st.rerun()
+    with col_reset:
+        if st.button("↺ Reset ALL to Pending", key=f"reset_all_{uid}", use_container_width=True):
+            review = {}
+            admin_save_review(service, audios_folder_id, review)
+            st.rerun()
+
+# ═════════════════════════════════════════════════════════════════════════════
+# ADMIN — OVERVIEW DASHBOARD
+# ═════════════════════════════════════════════════════════════════════════════
+def show_admin():
+    # ── session state for which recorder is selected
+    if "admin_selected" not in st.session_state:
+        st.session_state.admin_selected = None
+
+    # ── if a recorder is selected, show its detail view
+    if st.session_state.admin_selected:
+        show_admin_recorder_detail(st.session_state.admin_selected)
+        return
+
+    # ── header
+    service = get_drive_service()
+    c_title, c_logout = st.columns([5, 1])
+    with c_title:
+        st.markdown('<div class="title-main">Admin Dashboard</div>', unsafe_allow_html=True)
+        st.markdown('<div class="subtitle">Lisan ud Dawat — Full Control Panel</div>', unsafe_allow_html=True)
+    with c_logout:
+        st.markdown("<br>", unsafe_allow_html=True)
+        if st.button("Logout", key="admin_logout"):
+            st.session_state.logged_in = False
+            st.session_state.user_id = None
+            st.session_state.admin_selected = None
+            st.rerun()
+
+    st.markdown("<br>", unsafe_allow_html=True)
+
+    # ── gather all recorder stats
     total_done = 0
     total_texts = 0
     rows = []
 
-    for uid, user in USERS.items():
-        if user.get("is_admin") or not user.get("folder"):
-            continue
-        try:
-            _, user_folder_id, texts_folder_id, audios_folder_id = get_folder_ids(user["folder"])
-            texts = get_text_files(texts_folder_id)
-            audios = get_audio_files(audios_folder_id)
-            
-            t = len(texts)
-            done_stems = {Path(af["name"]).stem for af in audios}
-            d = len([tf for tf in texts if Path(tf["name"]).stem in done_stems])
-            
-            total_done  += d
-            total_texts += t
-            rows.append((user["name"], uid, d, t))
-        except:
-            rows.append((user["name"], uid, 0, "?"))
+    with st.spinner("Loading all recorder data..."):
+        for uid, user in USERS.items():
+            if user.get("is_admin") or not user.get("folder"):
+                continue
+            try:
+                _, _, texts_folder_id, audios_folder_id = get_folder_ids(user["folder"])
+                texts  = get_text_files(texts_folder_id)
+                audios = [a for a in get_audio_files(audios_folder_id) if a["name"] != REVIEW_FILENAME]
+                t = len(texts)
+                done_stems = {Path(af["name"]).stem for af in audios}
+                d = len([tf for tf in texts if Path(tf["name"]).stem in done_stems])
+                total_done  += d
+                total_texts += t
+
+                # quick review counts
+                review = admin_load_review(service, audios_folder_id)
+                ap  = sum(1 for v in review.values() if v == "approved")
+                rj  = sum(1 for v in review.values() if v == "rejected")
+                rows.append((user["name"], uid, d, t, ap, rj))
+            except Exception:
+                rows.append((user["name"], uid, 0, "?", 0, 0))
 
     pct_all = int(total_done / total_texts * 100) if total_texts else 0
 
-    c1, c2, c3 = st.columns(3)
-    with c1: st.markdown(f'<div class="stat-box"><div class="stat-num">{total_done}</div><div class="stat-label">Total Recorded</div></div>', unsafe_allow_html=True)
-    with c2: st.markdown(f'<div class="stat-box"><div class="stat-num">{total_texts}</div><div class="stat-label">Total Texts</div></div>', unsafe_allow_html=True)
-    with c3: st.markdown(f'<div class="stat-box"><div class="stat-num">{pct_all}%</div><div class="stat-label">Overall Done</div></div>', unsafe_allow_html=True)
+    # ── global stats
+    c1, c2, c3, c4 = st.columns(4)
+    with c1: st.markdown(f'<div class="stat-box"><div class="stat-num">15</div><div class="stat-label">Total Recorders</div></div>', unsafe_allow_html=True)
+    with c2: st.markdown(f'<div class="stat-box"><div class="stat-num">{total_done}</div><div class="stat-label">Total Uploaded</div></div>', unsafe_allow_html=True)
+    with c3: st.markdown(f'<div class="stat-box"><div class="stat-num">{total_texts}</div><div class="stat-label">Total Texts</div></div>', unsafe_allow_html=True)
+    with c4: st.markdown(f'<div class="stat-box"><div class="stat-num">{pct_all}%</div><div class="stat-label">Overall Progress</div></div>', unsafe_allow_html=True)
     st.progress(pct_all / 100)
-    st.markdown("<br>**[ PER RECORDER ]**")
+    st.markdown("<br>**[ ALL RECORDERS — Click any card to review their audios ]**")
     st.markdown("---")
 
-    for name, uid, d, t in rows:
-        pct = int(d / t * 100) if isinstance(t, int) and t else 0
-        c1, c2, c3, c4 = st.columns([2,1,1,3])
-        with c1: st.markdown(f"**{name}**")
-        with c2: st.markdown(f"`{d}/{t}`")
-        with c3: st.markdown(f'<span class="badge {"done" if pct==100 else "now"}">{pct}%</span>', unsafe_allow_html=True)
-        with c4: st.progress(pct / 100)
+    # ── recorder cards (2 per row)
+    recorder_list = rows
+    for i in range(0, len(recorder_list), 2):
+        cols = st.columns(2)
+        for j, col in enumerate(cols):
+            if i + j >= len(recorder_list):
+                break
+            name, uid, d, t, ap, rj = recorder_list[i + j]
+            pct = int(d / t * 100) if isinstance(t, int) and t else 0
+            pnd = d - ap - rj
+
+            with col:
+                badge_color = "done" if pct == 100 else "now"
+                st.markdown(f"""
+<div class="admin-recorder-card">
+  <div style="display:flex; justify-content:space-between; align-items:center;">
+    <span style="font-weight:700; font-size:1rem;">{name}</span>
+    <span class="badge {badge_color}">{pct}%</span>
+  </div>
+  <div style="font-size:0.8rem; color:#6b7280; margin: 0.4rem 0;">
+    Uploaded: <strong>{d}/{t}</strong> &nbsp;|&nbsp;
+    ✅ {ap} &nbsp; ❌ {rj} &nbsp; ⏳ {pnd}
+  </div>
+</div>
+""", unsafe_allow_html=True)
+                if st.button(f"🔍 Review {name}", key=f"sel_{uid}", use_container_width=True):
+                    st.session_state.admin_selected = uid
+                    st.rerun()
 
 # ═════════════════════════════════════════════════════════════════════════════
 # ROUTER
@@ -623,4 +873,4 @@ else:
     if USERS[uid].get("is_admin"):
         show_admin()
     else:
-        show_recorder()
+        show_recorder()
