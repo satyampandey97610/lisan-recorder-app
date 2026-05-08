@@ -112,8 +112,15 @@ def drive_get_or_create_folder(service, name, parent_id=None):
 def drive_list_files(service, folder_id, extension=".txt"):
     """List files in a folder with given extension."""
     q = f"'{folder_id}' in parents and trashed=false and name contains '{extension}'"
-    res = service.files().list(q=q, fields="files(id,name)", orderBy="name").execute()
-    return res.get("files", [])
+    files = []
+    page_token = None
+    while True:
+        res = service.files().list(q=q, fields="nextPageToken, files(id,name)", orderBy="name", pageSize=1000, pageToken=page_token).execute()
+        files.extend(res.get("files", []))
+        page_token = res.get("nextPageToken", None)
+        if page_token is None:
+            break
+    return files
 
 def drive_read_text_file(service, file_id):
     """Download and read a text file from Drive."""
