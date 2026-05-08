@@ -138,6 +138,9 @@ def drive_upload_audio(service, audio_bytes, filename, folder_id, mime_type="aud
     file = service.files().create(body=meta, media_body=media, fields="id,name").execute()
     return file
 
+def drive_delete_file(service, file_id):
+    """Permanently delete a file from Drive (used on reject)."""
+    service.files().delete(fileId=file_id).execute()
 
 
 # ─────────────────────────────────────────────────────────────────────────────
@@ -448,34 +451,93 @@ def show_recorder():
     st.progress(pct / 100)
     st.markdown("<br>", unsafe_allow_html=True)
 
-    # ── find next text
-    next_txt = None
-    for tf in text_files:
-        if tf["name"] not in done_set:
-            next_txt = tf
-            break
+    if total == 0:
+        st.warning("No text files found in your Drive texts folder. Ask admin to upload them.")
+        return
 
-    if next_txt is None:
+    if done == total:
         st.success("🎉 All recordings complete! Excellent work.")
         st.balloons()
         return
 
-    txt_name  = next_txt["name"]               # e.g. "001.txt"
-    txt_stem  = Path(txt_name).stem            # e.g. "001"
-    audio_name = f"{txt_stem}.webm"            # e.g. "001.webm"  ← SAME NAME
+    # ── Navigation: initialise current index (default = first unrecorded)
+    if "rec_nav_index" not in st.session_state or st.session_state.get("rec_nav_user") != user_id:
+        first_unrecorded = next((i for i, tf in enumerate(text_files) if tf["name"] not in done_set), 0)
+        st.session_state.rec_nav_index = first_unrecorded
+        st.session_state.rec_nav_user  = user_id
+
+    idx = st.session_state.rec_nav_index
+    idx = max(0, min(idx, total - 1))           # clamp
+    st.session_state.rec_nav_index = idx
+    cur_txt = text_files[idx]
+
+    # ── Navigation bar: ← index selector → Jump to next unrecorded
+    nav_col1, nav_col2, nav_col3, nav_col4 = st.columns([1, 3, 1, 2])
+    with nav_col1:
+        if st.button("◀ Prev", key="nav_prev", use_container_width=True, disabled=(idx == 0)):
+            st.session_state.rec_nav_index = idx - 1
+            st.rerun()
+    with nav_col2:
+        # Dropdown of all text stems with ✓ / ○ markers
+        labels = []
+        for i, tf in enumerate(text_files):
+            s = Path(tf["name"]).stem
+            marker = "✓" if tf["name"] in done_set else "○"
+            labels.append(f"{marker} {i+1:03d}. {s}")
+        chosen = st.selectbox("Jump to text", options=range(total),
+                              format_func=lambda i: labels[i],
+                              index=idx, key="nav_select", label_visibility="collapsed")
+        if chosen != idx:
+            st.session_state.rec_nav_index = chosen
+            st.rerun()
+    with nav_col3:
+        if st.button("Next ▶", key="nav_next", use_container_width=True, disabled=(idx == total - 1)):
+            st.session_state.rec_nav_index = idx + 1
+            st.rerun()
+    with nav_col4:
+        # Jump straight to next unrecorded
+        next_unrecorded = next((i for i, tf in enumerate(text_files) if tf["name"] not in done_set), None)
+        if next_unrecorded is not None and next_unrecorded != idx:
+            if st.button("⏭ Next Unrecorded", key="nav_jump", use_container_width=True):
+                st.session_state.rec_nav_index = next_unrecorded
+                st.rerun()
+        else:
+            st.button("⏭ Next Unrecorded", key="nav_jump", use_container_width=True, disabled=True)
+
+    st.markdown("<br>", unsafe_allow_html=True)
+
+    txt_name = cur_txt["name"]          # e.g. "001.txt"
+    txt_stem = Path(txt_name).stem      # e.g. "001"
+    is_done  = cur_txt["name"] in done_set
+
+    # ── Text file name header — always visible
+    status_badge = (
+        '<span class="badge done">✓ RECORDED</span>' if is_done
+        else '<span class="badge now">PENDING</span>'
+    )
+    st.markdown(
+        f'<div style="display:flex;align-items:center;gap:0.75rem;margin-bottom:0.5rem;">'  
+        f'<span style="font-family:\'Inter\',sans-serif;font-weight:700;font-size:1rem;color:#1f2937;">'
+        f'📄 File: <code>{txt_name}</code></span>{status_badge}</div>',
+        unsafe_allow_html=True
+    )
+
+    # ── If already recorded, show a notice but still allow re-record
+    if is_done:
+        st.info(f"✅ This text ({txt_stem}) is already recorded. You can re-record it below and upload again to overwrite.")
 
     # ── instructions
     st.markdown("""
     <div style="font-size:0.75rem; color:#7a7670; line-height:2;">
     ① &nbsp;Press the <strong style="color:#c9a84c;">🎙️ mic button</strong> below to start recording<br>
     ② &nbsp;Press it again to <strong style="color:#c9a84c;">stop</strong> — then listen to your preview<br>
-    ③ &nbsp;If good, click <strong style="color:#c9a84c;">☁️ UPLOAD TO DRIVE &amp; NEXT</strong><br>
-    ④ &nbsp;If not good, press the mic button again to re-record
+    ③ &nbsp;If good, click <strong style="color:#c9a84c;">☁️ UPLOAD TO DRIVE</strong><br>
+    ④ &nbsp;Use <strong style="color:#c9a84c;">◀ Prev / Next ▶</strong> above to skip to any text
     </div>
     """, unsafe_allow_html=True)
     st.markdown("<br>", unsafe_allow_html=True)
 
-    # ── Native Streamlit audio recorder ABOVE the text
+    # ── Native Streamlit audio recorder
     audio_value = st.audio_input(
         "🎙️ Press to record — press again to stop",
         key=f"audio_input_{txt_stem}"
@@ -483,7 +545,7 @@ def show_recorder():
 
     if audio_value is not None:
         audio_bytes = audio_value.read()
-        
+
         # ── Check Audio Duration
         try:
             with wave.open(io.BytesIO(audio_bytes), 'rb') as f:
@@ -492,47 +554,51 @@ def show_recorder():
                 duration = frames / float(rate)
         except:
             duration = 0
-            
+
         st.markdown("**▶ Preview your recording:**")
         st.audio(audio_bytes)
-        
-        if duration > 30.5:  # giving 0.5s buffer
-            st.error(f"❌ Recording is too long ({int(duration)} seconds). The maximum allowed is 30 seconds.")
-            st.warning("Please click the mic button above to re-record a shorter version.")
+
+        if duration > 30.5:
+            st.error(f"❌ Recording is too long ({int(duration)} seconds). Maximum is 30 seconds.")
+            st.warning("Press the mic button again to re-record a shorter version.")
         else:
             st.markdown(f'<div style="color:#10b981; font-size:0.8rem;">✓ Perfect length: {duration:.1f} seconds</div>', unsafe_allow_html=True)
             st.markdown("<br>", unsafe_allow_html=True)
 
-            col1, col2 = st.columns(2)
+            col1, col2, col3 = st.columns(3)
             with col1:
                 upload_btn = st.button(
-                    "☁️ UPLOAD TO DRIVE & NEXT",
+                    "☁️ UPLOAD TO DRIVE",
                     key=f"upload_btn_{txt_stem}",
                     use_container_width=True
                 )
             with col2:
-                st.button(
-                    "↺ RE-RECORD (press mic again)",
-                    key=f"rerecord_hint_{txt_stem}",
-                    use_container_width=True,
-                    disabled=True
-                )
+                if st.button("▶ Next Text →", key=f"skip_next_{txt_stem}", use_container_width=True,
+                             disabled=(idx == total - 1)):
+                    st.session_state.rec_nav_index = idx + 1
+                    st.rerun()
+            with col3:
+                st.button("↺ RE-RECORD", key=f"rerecord_hint_{txt_stem}",
+                          use_container_width=True, disabled=True)
 
             if upload_btn:
-                final_name  = f"{txt_stem}.wav"   # st.audio_input returns wav
-                
+                final_name = f"{txt_stem}.wav"
                 try:
                     with st.spinner(f"⏳ Uploading {final_name} to your Google Drive..."):
                         drive_upload_audio(service, audio_bytes, final_name, audios_folder_id, "audio/wav")
-                        # Clear caches so we fetch the updated lists from Drive
                         get_text_files.clear()
                         get_audio_files.clear()
-                    st.success(f"✅ {final_name} saved to YOUR Google Drive! Loading next text...")
-                    import time; time.sleep(1.5)
+                    st.success(f"✅ {final_name} saved! Moving to next text...")
+                    # Auto-advance to next unrecorded after upload
+                    nxt = next((i for i, tf in enumerate(text_files)
+                                if tf["name"] not in done_set and i != idx), None)
+                    if nxt is not None:
+                        st.session_state.rec_nav_index = nxt
+                    time.sleep(1.2)
                     st.rerun()
                 except Exception as e:
                     st.error(f"❌ Upload failed: {str(e)}")
-                    st.info("Please wait a moment and click upload again.")
+                    st.info("Please wait a moment and try again.")
     else:
         st.markdown(
             '<div style="color:#7a7670;font-size:0.78rem;margin-top:0.5rem;">'
@@ -542,21 +608,28 @@ def show_recorder():
 
     st.markdown("---")
 
-    # ── read text from Drive and display BELOW recorder
+    # ── Read and display the Arabic text BELOW recorder — filename always shown
     with st.spinner("Loading text..."):
-        text_content = drive_read_text_file(service, next_txt["id"])
+        text_content = drive_read_text_file(service, cur_txt["id"])
 
-    st.markdown(f'**[ TEXT: `{txt_stem}` ]**')
+    st.markdown(
+        f'<div style="font-family:\'Inter\',sans-serif;font-size:0.8rem;color:#6b7280;'
+        f'margin-bottom:0.4rem;">📄 <strong style="color:#b8860b;">{txt_name}</strong> '
+        f'&nbsp;—&nbsp; Text {idx+1} of {total}</div>',
+        unsafe_allow_html=True
+    )
     st.markdown(f'<div class="arabic-text">{text_content}</div>', unsafe_allow_html=True)
 
-    # ── sidebar progress list
+    # ── sidebar progress list — highlight current
     with st.sidebar:
         st.markdown("**[ TEXTS ]**")
-        for tf in text_files:
+        for i, tf in enumerate(text_files):
             stem = Path(tf["name"]).stem
-            if tf["name"] in done_set:
+            if tf["name"] in done_set and i == idx:
+                st.markdown(f'<span class="badge done">✓ NOW</span> `{stem}`', unsafe_allow_html=True)
+            elif tf["name"] in done_set:
                 st.markdown(f'<span class="badge done">✓</span> `{stem}`', unsafe_allow_html=True)
-            elif tf == next_txt:
+            elif i == idx:
                 st.markdown(f'<span class="badge now">NOW</span> `{stem}`', unsafe_allow_html=True)
             else:
                 st.markdown(f'<span class="pending">○</span> `{stem}`', unsafe_allow_html=True)
@@ -735,10 +808,16 @@ def show_admin_recorder_detail(uid):
                     st.rerun()
 
             with col_reject:
-                if st.button("❌ Reject", key=f"reject_{uid}_{stem}",
+                if st.button("❌ Reject & Delete", key=f"reject_{uid}_{stem}",
                              use_container_width=True,
                              disabled=(status == "rejected")):
-                    review[stem] = "rejected"
+                    # Delete audio file from Drive permanently
+                    try:
+                        drive_delete_file(service, af["id"])
+                    except Exception:
+                        pass
+                    # Remove from review JSON (file is gone)
+                    review.pop(stem, None)
                     admin_save_review(service, audios_folder_id, review)
                     get_audio_files.clear()
                     st.rerun()
@@ -755,10 +834,15 @@ def show_admin_recorder_detail(uid):
             admin_save_review(service, audios_folder_id, review)
             st.rerun()
     with col_rj_all:
-        if st.button("❌ Reject ALL", key=f"reject_all_{uid}", use_container_width=True):
+        if st.button("❌ Reject ALL & Delete", key=f"reject_all_{uid}", use_container_width=True):
             for af in audios:
-                review[Path(af["name"]).stem] = "rejected"
-            admin_save_review(service, audios_folder_id, review)
+                try:
+                    drive_delete_file(service, af["id"])
+                except Exception:
+                    pass
+            # Clear review JSON entries for deleted files
+            admin_save_review(service, audios_folder_id, {})
+            get_audio_files.clear()
             st.rerun()
     with col_reset:
         if st.button("↺ Reset ALL to Pending", key=f"reset_all_{uid}", use_container_width=True):
