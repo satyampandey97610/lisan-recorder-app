@@ -207,6 +207,8 @@ def get_audio_files(audios_folder_id):
 # AUTH
 # ─────────────────────────────────────────────────────────────────────────────
 def check_login(username, password):
+    username = username.strip()
+    password = password.strip()
     if username in USERS:
         if USERS[username]["password_hash"] == hashlib.sha256(password.encode()).hexdigest():
             return True
@@ -236,6 +238,12 @@ html, body, [data-testid="stAppViewContainer"] {
     color: var(--text-main) !important;
     font-family: 'Inter', sans-serif !important;
 }
+[data-testid="block-container"] {
+    padding-top: 1.5rem !important;
+    padding-bottom: 1rem !important;
+}
+.stMarkdown { margin-bottom: -0.5rem !important; }
+hr { margin: 0.5rem 0 !important; }
 
 /* Animated Soft Background */
 [data-testid="stAppViewContainer"]::before {
@@ -305,19 +313,18 @@ strong { color: var(--gold-primary); font-weight: 600; }
 /* Arabic Text Box (Premium Light Glassmorphism) */
 .arabic-text {
     font-family: 'Amiri', serif !important; 
-    font-size: 2.2rem !important;
-    line-height: 2.0 !important; 
+    font-size: 1.9rem !important;
+    line-height: 1.8 !important; 
     color: #111827 !important; /* Very dark slate for high readability */
     direction: rtl !important; 
     text-align: center !important;
     background: #ffffff; 
     border: 1px solid rgba(0,0,0,0.05);
-    box-shadow: 0 10px 30px rgba(0,0,0,0.06);
-    padding: 2.5rem;
-    border-radius: 16px; 
-    margin: 1.0rem 0;
+    box-shadow: 0 4px 15px rgba(0,0,0,0.04);
+    padding: 1.2rem;
+    border-radius: 12px; 
+    margin: 0.5rem 0;
     position: relative;
-    /* Removed max-height so text appears fully without a scroll box */
 }
 .arabic-text::before {
     content: ''; position: absolute; top: 0; left: 0; right: 0; height: 3px;
@@ -431,84 +438,66 @@ def show_recorder():
     user_id = st.session_state.user_id
     user    = USERS[user_id]
 
-    # ── header
-    c1, c2 = st.columns([5, 1])
-    with c1:
-        st.markdown('<div class="title-main">لسان الدعوت</div>', unsafe_allow_html=True)
-        st.markdown(f'<div class="subtitle">Session — {user["name"]}</div>', unsafe_allow_html=True)
-    with c2:
-        if st.button("Logout"):
-            for k in ["logged_in","user_id","recorded_audio","recorded_name","current_txt_index"]:
-                st.session_state[k] = False if k == "logged_in" else None
-            st.rerun()
-
-    st.markdown("<br>", unsafe_allow_html=True)
-
     # ── get Drive folder IDs
-    with st.spinner("Connecting to Google Drive..."):
+    with st.spinner("Connecting..."):
         _, user_folder_id, texts_folder_id, audios_folder_id = get_folder_ids(user["folder"])
         text_files = get_text_files(texts_folder_id)
         audio_files = get_audio_files(audios_folder_id)
 
     if not text_files:
         st.warning("No text files found in your Drive texts folder. Ask admin to upload them.")
+        if st.button("Logout"):
+            st.session_state.logged_in = False
+            st.rerun()
         return
 
-    # ── calculate progress directly from Drive folders
+    # ── calculate progress
     total = len(text_files)
-    # Get stems of all uploaded audio files (e.g., "001.wav" -> "001"), ignoring review file
     done_stems = {Path(af["name"]).stem for af in audio_files if not af["name"].endswith(".json")}
-    
-    # A text is done if its stem exists in the audio folder
     done_set = {tf["name"] for tf in text_files if Path(tf["name"]).stem in done_stems}
     done = len(done_set)
-    remaining = total - done
-
-    # ── stats
-    c1, c2, c3 = st.columns(3)
     pct = int(done / total * 100) if total else 0
-    with c1: st.markdown(f'<div class="stat-box"><div class="stat-num">{done}</div><div class="stat-label">Recorded</div></div>', unsafe_allow_html=True)
-    with c2: st.markdown(f'<div class="stat-box"><div class="stat-num">{remaining}</div><div class="stat-label">Remaining</div></div>', unsafe_allow_html=True)
-    with c3: st.markdown(f'<div class="stat-box"><div class="stat-num">{pct}%</div><div class="stat-label">Complete</div></div>', unsafe_allow_html=True)
-    st.progress(pct / 100)
-    st.markdown("<br>", unsafe_allow_html=True)
 
-    if total == 0:
-        st.warning("No text files found in your Drive texts folder. Ask admin to upload them.")
-        return
-
-    if done == total:
+    if done == total and total > 0:
         st.success("🎉 All recordings complete! Excellent work.")
         st.balloons()
+        if st.button("Logout"):
+            st.session_state.logged_in = False
+            st.rerun()
         return
 
-    # ── Navigation: initialise current index (default = first unrecorded)
+    # ── header & progress inline
+    c1, c2, c3 = st.columns([3, 4, 1.5])
+    with c1: 
+        st.markdown(f'<div style="font-family:\'Amiri\',serif; font-size:1.6rem; color:#b8860b; font-weight:bold; line-height:1.2;">لسان الدعوت</div><div style="font-size:0.75rem; color:#6b7280; text-transform:uppercase;">{user["name"]}</div>', unsafe_allow_html=True)
+    with c2:
+        st.markdown(f'<div style="font-size:0.85rem; margin-bottom:0.2rem; font-weight:600;">Progress: {done}/{total} ({pct}%)</div>', unsafe_allow_html=True)
+        st.progress(pct / 100)
+    with c3:
+        if st.button("Logout", use_container_width=True):
+            for k in ["logged_in","user_id","recorded_audio","recorded_name","current_txt_index"]:
+                st.session_state[k] = False if k == "logged_in" else None
+            st.rerun()
+
+    # ── Navigation
     if "rec_nav_index" not in st.session_state or st.session_state.get("rec_nav_user") != user_id:
-        first_unrecorded = next((i for i, tf in enumerate(text_files) if tf["name"] not in done_set), 0)
-        st.session_state.rec_nav_index = first_unrecorded
+        st.session_state.rec_nav_index = next((i for i, tf in enumerate(text_files) if tf["name"] not in done_set), 0)
         st.session_state.rec_nav_user  = user_id
 
-    idx = st.session_state.rec_nav_index
-    idx = max(0, min(idx, total - 1))           # clamp
+    idx = max(0, min(st.session_state.rec_nav_index, total - 1))
     st.session_state.rec_nav_index = idx
     cur_txt = text_files[idx]
+    
+    st.markdown("<hr style='margin: 0.5rem 0;'>", unsafe_allow_html=True)
 
-    # ── Navigation bar: ← index selector → Jump to next unrecorded
     nav_col1, nav_col2, nav_col3, nav_col4 = st.columns([1, 3, 1, 2])
     with nav_col1:
         if st.button("◀ Prev", key="nav_prev", use_container_width=True, disabled=(idx == 0)):
             st.session_state.rec_nav_index = idx - 1
             st.rerun()
     with nav_col2:
-        # Dropdown of all text stems with ✓ / ○ markers
-        labels = []
-        for i, tf in enumerate(text_files):
-            s = Path(tf["name"]).stem
-            marker = "✓" if tf["name"] in done_set else "○"
-            labels.append(f"{marker} {i+1:03d}. {s}")
-        chosen = st.selectbox("Jump to text", options=range(total),
-                              format_func=lambda i: labels[i],
-                              index=idx, key="nav_select", label_visibility="collapsed")
+        labels = [f"{'✓' if tf['name'] in done_set else '○'} {i+1:03d}. {Path(tf['name']).stem}" for i, tf in enumerate(text_files)]
+        chosen = st.selectbox("Jump", options=range(total), format_func=lambda i: labels[i], index=idx, key="nav_select", label_visibility="collapsed")
         if chosen != idx:
             st.session_state.rec_nav_index = chosen
             st.rerun()
@@ -517,132 +506,63 @@ def show_recorder():
             st.session_state.rec_nav_index = idx + 1
             st.rerun()
     with nav_col4:
-        # Jump straight to next unrecorded
         next_unrecorded = next((i for i, tf in enumerate(text_files) if tf["name"] not in done_set), None)
-        if next_unrecorded is not None and next_unrecorded != idx:
-            if st.button("⏭ Next Unrecorded", key="nav_jump", use_container_width=True):
-                st.session_state.rec_nav_index = next_unrecorded
-                st.rerun()
-        else:
-            st.button("⏭ Next Unrecorded", key="nav_jump", use_container_width=True, disabled=True)
+        if st.button("⏭ Next Unrecorded", key="nav_jump", use_container_width=True, disabled=(next_unrecorded is None or next_unrecorded == idx)):
+            st.session_state.rec_nav_index = next_unrecorded
+            st.rerun()
 
-    st.markdown("<br>", unsafe_allow_html=True)
-
-    txt_name = cur_txt["name"]          # e.g. "001.txt"
-    txt_stem = Path(txt_name).stem      # e.g. "001"
+    txt_name = cur_txt["name"]
+    txt_stem = Path(txt_name).stem
     is_done  = cur_txt["name"] in done_set
 
-    # ── Text file name header — always visible
-    status_badge = (
-        '<span class="badge done">✓ RECORDED</span>' if is_done
-        else '<span class="badge now">PENDING</span>'
-    )
-    st.markdown(
-        f'<div style="display:flex;align-items:center;gap:0.75rem;margin-bottom:0.5rem;">'  
-        f'<span style="font-family:\'Inter\',sans-serif;font-weight:700;font-size:1rem;color:#1f2937;">'
-        f'📄 File: <code>{txt_name}</code></span>{status_badge}</div>',
-        unsafe_allow_html=True
-    )
-
-    # ── If already recorded, show a notice but still allow re-record
-    if is_done:
-        st.info(f"✅ This text ({txt_stem}) is already recorded. You can re-record it below and upload again to overwrite.")
-
-    # ── instructions
-    st.markdown("""
-    <div style="font-size:0.75rem; color:#7a7670; line-height:2;">
-    ① &nbsp;Press the <strong style="color:#c9a84c;">🎙️ mic button</strong> below to start recording<br>
-    ② &nbsp;Press it again to <strong style="color:#c9a84c;">stop</strong> — then listen to your preview<br>
-    ③ &nbsp;If good, click <strong style="color:#c9a84c;">☁️ UPLOAD TO DRIVE</strong><br>
-    ④ &nbsp;Use <strong style="color:#c9a84c;">◀ Prev / Next ▶</strong> above to skip to any text
-    </div>
-    """, unsafe_allow_html=True)
-    st.markdown("<br>", unsafe_allow_html=True)
-
-    # ── Native Streamlit audio recorder
-    audio_value = st.audio_input(
-        "🎙️ Press to record — press again to stop",
-        key=f"audio_input_{txt_stem}"
-    )
-
-    if audio_value is not None:
-        audio_bytes = audio_value.read()
-
-        # ── Check Audio Duration
-        try:
-            with wave.open(io.BytesIO(audio_bytes), 'rb') as f:
-                frames = f.getnframes()
-                rate = f.getframerate()
-                duration = frames / float(rate)
-        except:
-            duration = 0
-
-        st.markdown("**▶ Preview your recording:**")
-        st.audio(audio_bytes)
-
-        if duration > 30.5:
-            st.error(f"❌ Recording is too long ({int(duration)} seconds). Maximum is 30 seconds.")
-            st.warning("Press the mic button again to re-record a shorter version.")
-        else:
-            st.markdown(f'<div style="color:#10b981; font-size:0.8rem;">✓ Perfect length: {duration:.1f} seconds</div>', unsafe_allow_html=True)
-            st.markdown("<br>", unsafe_allow_html=True)
-
-            col1, col2, col3 = st.columns(3)
-            with col1:
-                upload_btn = st.button(
-                    "☁️ UPLOAD TO DRIVE",
-                    key=f"upload_btn_{txt_stem}",
-                    use_container_width=True
-                )
-            with col2:
-                if st.button("▶ Next Text →", key=f"skip_next_{txt_stem}", use_container_width=True,
-                             disabled=(idx == total - 1)):
-                    st.session_state.rec_nav_index = idx + 1
-                    st.rerun()
-            with col3:
-                st.button("↺ RE-RECORD", key=f"rerecord_hint_{txt_stem}",
-                          use_container_width=True, disabled=True)
-
-            if upload_btn:
-                final_name = f"{txt_stem}.wav"
-                try:
-                    with st.spinner(f"⏳ Uploading {final_name} to your Google Drive..."):
-                        drive_upload_audio(service, audio_bytes, final_name, audios_folder_id, "audio/wav")
-                        get_text_files.clear()
-                        get_audio_files.clear()
-                    st.success(f"✅ {final_name} saved! Moving to next text...")
-                    # Auto-advance to next unrecorded after upload
-                    nxt = next((i for i, tf in enumerate(text_files)
-                                if tf["name"] not in done_set and i != idx), None)
-                    if nxt is not None:
-                        st.session_state.rec_nav_index = nxt
-                    time.sleep(1.2)
-                    st.rerun()
-                except Exception as e:
-                    st.error(f"❌ Upload failed: {str(e)}")
-                    st.info("Please wait a moment and try again.")
-    else:
-        st.markdown(
-            '<div style="color:#7a7670;font-size:0.78rem;margin-top:0.5rem;">'
-            '⬆ Press the mic button above to start recording</div>',
-            unsafe_allow_html=True
-        )
-
-    st.markdown("---")
-
-    # ── Read and display the Arabic text BELOW recorder — filename always shown
+    # ── Text Display
     with st.spinner("Loading text..."):
         text_content = drive_read_text_file(service, cur_txt["id"])
 
-    st.markdown(
-        f'<div style="font-family:\'Inter\',sans-serif;font-size:0.8rem;color:#6b7280;'
-        f'margin-bottom:0.4rem;">📄 <strong style="color:#b8860b;">{txt_name}</strong> '
-        f'&nbsp;—&nbsp; Text {idx+1} of {total}</div>',
-        unsafe_allow_html=True
-    )
+    status_badge = '<span style="color:#059669; font-weight:bold; font-size:0.8rem;">✓ RECORDED</span>' if is_done else '<span style="color:#d97706; font-weight:bold; font-size:0.8rem;">○ PENDING</span>'
+    st.markdown(f'<div style="display:flex; justify-content:space-between; align-items:center; margin-top:0.5rem;"><div><span style="font-size:0.9rem; font-weight:600;">📄 File: {txt_name}</span> &nbsp; {status_badge}</div></div>', unsafe_allow_html=True)
+    
     st.markdown(f'<div class="arabic-text">{text_content}</div>', unsafe_allow_html=True)
 
-    # ── sidebar progress list — highlight current
+    # ── Instructions and limit
+    st.markdown(f'<div style="background:#fff3cd; color:#856404; padding:0.4rem 0.8rem; border-radius:6px; font-size:0.85rem; font-weight:600; text-align:center; border:1px solid #ffeeba; margin-bottom: 0.5rem;">⚠️ IMPORTANT: Audio MUST be 30 seconds or less! Over 30s will NOT be submitted. Record & track time in your mind.</div>', unsafe_allow_html=True)
+
+    # ── Audio Recorder
+    audio_value = st.audio_input("🎙️ Record (Max 30s)", key=f"audio_input_{txt_stem}")
+
+    if audio_value is not None:
+        audio_bytes = audio_value.read()
+        try:
+            with wave.open(io.BytesIO(audio_bytes), 'rb') as f:
+                duration = f.getnframes() / float(f.getframerate())
+        except: duration = 0
+
+        if duration > 30.5:
+            st.error(f"❌ Audio is {int(duration)}s. MAX LIMIT IS 30 SECONDS! Please re-record a shorter version.")
+        else:
+            st.markdown(f'<div style="color:#10b981; font-size:0.85rem; font-weight:600; text-align:center; margin-bottom: 0.5rem;">✓ Duration: {duration:.1f}s (Acceptable)</div>', unsafe_allow_html=True)
+            col1, col2 = st.columns(2)
+            with col1:
+                if st.button("☁️ UPLOAD TO DRIVE", key=f"upload_btn_{txt_stem}", use_container_width=True):
+                    final_name = f"{txt_stem}.wav"
+                    try:
+                        with st.spinner(f"Uploading {final_name}..."):
+                            drive_upload_audio(service, audio_bytes, final_name, audios_folder_id, "audio/wav")
+                            get_text_files.clear()
+                            get_audio_files.clear()
+                        st.success("✅ Saved!")
+                        nxt = next((i for i, tf in enumerate(text_files) if tf["name"] not in done_set and i != idx), None)
+                        if nxt is not None: st.session_state.rec_nav_index = nxt
+                        time.sleep(1.0)
+                        st.rerun()
+                    except Exception as e:
+                        st.error(f"Upload failed: {str(e)}")
+            with col2:
+                if st.button("▶ Next Text", key=f"skip_next_{txt_stem}", use_container_width=True, disabled=(idx == total - 1)):
+                    st.session_state.rec_nav_index = idx + 1
+                    st.rerun()
+
+    # ── Sidebar
     with st.sidebar:
         st.markdown("**[ TEXTS ]**")
         for i, tf in enumerate(text_files):
