@@ -519,10 +519,10 @@ def show_recorder():
     st.markdown(f'<div style="display:flex; justify-content:space-between; align-items:center; margin-top:0.5rem;"><div><span style="font-size:0.9rem; font-weight:600;">📄 File: {txt_name}</span> &nbsp; {status_badge}</div></div>', unsafe_allow_html=True)
     
     # ── Instructions and limit
-    st.markdown(f'<div style="background:#fff3cd; color:#856404; padding:0.4rem 0.8rem; border-radius:6px; font-size:0.85rem; font-weight:600; text-align:center; border:1px solid #ffeeba; margin-bottom: 0.5rem;">⚠️ IMPORTANT: Audio MUST be 30 seconds or less! Over 30s will NOT be submitted. Record & track time in your mind.</div>', unsafe_allow_html=True)
+    st.markdown(f'<div style="background:#fff3cd; color:#856404; padding:0.4rem 0.8rem; border-radius:6px; font-size:0.85rem; font-weight:600; text-align:center; border:1px solid #ffeeba; margin-bottom: 0.5rem;">⚠️ IMPORTANT: Audio MUST be exactly between 20s and 30s! Under 20s or over 30s will NOT be accepted. Track time in your mind.</div>', unsafe_allow_html=True)
 
     # ── Audio Recorder
-    audio_value = st.audio_input("🎙️ Record (Max 30s)", key=f"audio_input_{txt_stem}")
+    audio_value = st.audio_input("🎙️ Record (20s - 30s)", key=f"audio_input_{txt_stem}")
 
     if audio_value is not None:
         audio_bytes = audio_value.read()
@@ -531,8 +531,8 @@ def show_recorder():
                 duration = f.getnframes() / float(f.getframerate())
         except: duration = 0
 
-        if duration > 30.5:
-            st.error(f"❌ Audio is {int(duration)}s. MAX LIMIT IS 30 SECONDS! Please re-record a shorter version.")
+        if duration < 19.5 or duration > 30.5:
+            st.error(f"❌ Audio is {duration:.1f}s. LIMIT IS STRICTLY 20-30 SECONDS! Please re-record.")
         else:
             st.markdown(f'<div style="color:#10b981; font-size:0.85rem; font-weight:600; text-align:center; margin-bottom: 0.5rem;">✓ Duration: {duration:.1f}s (Acceptable)</div>', unsafe_allow_html=True)
             col1, col2 = st.columns(2)
@@ -765,6 +765,15 @@ def show_admin_recorder_detail(uid):
                     st.rerun()
 
             st.markdown('</div>', unsafe_allow_html=True)
+            
+            for t in texts:
+                if Path(t["name"]).stem == stem:
+                    try:
+                        t_content = drive_read_text_file(service, t["id"])
+                        st.markdown(f'<div dir="rtl" class="arabic-text" style="font-size:1.1rem; background:#fff; padding:10px; margin-bottom:15px; border-radius:5px; border:1px solid #e5e7eb;">{t_content}</div>', unsafe_allow_html=True)
+                    except:
+                        pass
+                    break
 
     st.markdown("<br>", unsafe_allow_html=True)
     # ── bulk actions
