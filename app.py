@@ -736,7 +736,7 @@ def show_admin_recorder_detail(uid):
             with col_audio:
                 try:
                     audio_bytes = admin_get_audio_bytes(service, af["id"])
-                    st.audio(audio_bytes, key=f"play_{uid}_{stem}")
+                    st.audio(audio_bytes)
                 except Exception as e:
                     st.warning(f"Cannot load audio: {e}")
 
