@@ -532,17 +532,17 @@ def show_recorder():
             if st.button("☁️ UPLOAD TO DRIVE", key=f"upload_btn_{txt_stem}", use_container_width=True):
                 final_name = f"{txt_stem}.webm"
                 try:
-                        with st.spinner(f"Uploading {final_name}..."):
-                            drive_upload_audio(service, audio_bytes, final_name, audios_folder_id, "audio/webm")
-                            get_text_files.clear()
-                            get_audio_files.clear()
-                        st.success("✅ Saved!")
-                        nxt = next((i for i, tf in enumerate(text_files) if tf["name"] not in done_set and i != idx), None)
-                        if nxt is not None: st.session_state.rec_nav_index = nxt
-                        time.sleep(1.0)
-                        st.rerun()
-                    except Exception as e:
-                        st.error(f"Upload failed: {str(e)}")
+                    with st.spinner(f"Uploading {final_name}..."):
+                        drive_upload_audio(service, audio_bytes, final_name, audios_folder_id, "audio/webm")
+                        get_text_files.clear()
+                        get_audio_files.clear()
+                    st.success("✅ Saved!")
+                    nxt = next((i for i, tf in enumerate(text_files) if tf["name"] not in done_set and i != idx), None)
+                    if nxt is not None: st.session_state.rec_nav_index = nxt
+                    time.sleep(1.0)
+                    st.rerun()
+                except Exception as e:
+                    st.error(f"Upload failed: {str(e)}")
             with col2:
                 if st.button("▶ Next Text", key=f"skip_next_{txt_stem}", use_container_width=True, disabled=(idx == total - 1)):
                     st.session_state.rec_nav_index = idx + 1
