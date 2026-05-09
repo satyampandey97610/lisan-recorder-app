@@ -11,6 +11,7 @@ import wave
 import time
 from datetime import datetime
 from pathlib import Path
+from custom_recorder import custom_audio_recorder
 
 # Google Drive
 from google.oauth2.credentials import Credentials
@@ -522,26 +523,17 @@ def show_recorder():
     st.markdown(f'<div style="background:#fff3cd; color:#856404; padding:0.4rem 0.8rem; border-radius:6px; font-size:0.85rem; font-weight:600; text-align:center; border:1px solid #ffeeba; margin-bottom: 0.5rem;">⚠️ IMPORTANT: Audio MUST be 30 seconds or less! Over 30s will NOT be submitted. Record & track time in your mind.</div>', unsafe_allow_html=True)
 
     # ── Audio Recorder
-    audio_value = st.audio_input("🎙️ Record (Max 30s)", key=f"audio_input_{txt_stem}")
+    audio_bytes = custom_audio_recorder(key=f"audio_input_{txt_stem}")
 
-    if audio_value is not None:
-        audio_bytes = audio_value.read()
-        try:
-            with wave.open(io.BytesIO(audio_bytes), 'rb') as f:
-                duration = f.getnframes() / float(f.getframerate())
-        except: duration = 0
-
-        if duration > 30.5:
-            st.error(f"❌ Audio is {int(duration)}s. MAX LIMIT IS 30 SECONDS! Please re-record a shorter version.")
-        else:
-            st.markdown(f'<div style="color:#10b981; font-size:0.85rem; font-weight:600; text-align:center; margin-bottom: 0.5rem;">✓ Duration: {duration:.1f}s (Acceptable)</div>', unsafe_allow_html=True)
-            col1, col2 = st.columns(2)
-            with col1:
-                if st.button("☁️ UPLOAD TO DRIVE", key=f"upload_btn_{txt_stem}", use_container_width=True):
-                    final_name = f"{txt_stem}.wav"
-                    try:
+    if audio_bytes is not None:
+        st.markdown(f'<div style="color:#10b981; font-size:0.85rem; font-weight:600; text-align:center; margin-bottom: 0.5rem;">✓ Audio recorded successfully (Max 30s enforced)</div>', unsafe_allow_html=True)
+        col1, col2 = st.columns(2)
+        with col1:
+            if st.button("☁️ UPLOAD TO DRIVE", key=f"upload_btn_{txt_stem}", use_container_width=True):
+                final_name = f"{txt_stem}.webm"
+                try:
                         with st.spinner(f"Uploading {final_name}..."):
-                            drive_upload_audio(service, audio_bytes, final_name, audios_folder_id, "audio/wav")
+                            drive_upload_audio(service, audio_bytes, final_name, audios_folder_id, "audio/webm")
                             get_text_files.clear()
                             get_audio_files.clear()
                         st.success("✅ Saved!")
