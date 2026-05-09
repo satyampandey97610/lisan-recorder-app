@@ -8,7 +8,8 @@ if not _RELEASE:
     _component_func = components.declare_component("custom_recorder", url="http://localhost:3001")
 else:
     parent_dir = os.path.dirname(os.path.abspath(__file__))
-    _component_func = components.declare_component("custom_recorder", path=parent_dir)
+    frontend_dir = os.path.join(parent_dir, "frontend")
+    _component_func = components.declare_component("custom_recorder", path=frontend_dir)
 
 def custom_audio_recorder(key=None):
     """
