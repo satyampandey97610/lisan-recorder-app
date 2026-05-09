@@ -515,15 +515,9 @@ def show_recorder():
     txt_stem = Path(txt_name).stem
     is_done  = cur_txt["name"] in done_set
 
-    # ── Text Display
-    with st.spinner("Loading text..."):
-        text_content = drive_read_text_file(service, cur_txt["id"])
-
     status_badge = '<span style="color:#059669; font-weight:bold; font-size:0.8rem;">✓ RECORDED</span>' if is_done else '<span style="color:#d97706; font-weight:bold; font-size:0.8rem;">○ PENDING</span>'
     st.markdown(f'<div style="display:flex; justify-content:space-between; align-items:center; margin-top:0.5rem;"><div><span style="font-size:0.9rem; font-weight:600;">📄 File: {txt_name}</span> &nbsp; {status_badge}</div></div>', unsafe_allow_html=True)
     
-    st.markdown(f'<div class="arabic-text">{text_content}</div>', unsafe_allow_html=True)
-
     # ── Instructions and limit
     st.markdown(f'<div style="background:#fff3cd; color:#856404; padding:0.4rem 0.8rem; border-radius:6px; font-size:0.85rem; font-weight:600; text-align:center; border:1px solid #ffeeba; margin-bottom: 0.5rem;">⚠️ IMPORTANT: Audio MUST be 30 seconds or less! Over 30s will NOT be submitted. Record & track time in your mind.</div>', unsafe_allow_html=True)
 
@@ -561,6 +555,12 @@ def show_recorder():
                 if st.button("▶ Next Text", key=f"skip_next_{txt_stem}", use_container_width=True, disabled=(idx == total - 1)):
                     st.session_state.rec_nav_index = idx + 1
                     st.rerun()
+
+    # ── Text Display
+    with st.spinner("Loading text..."):
+        text_content = drive_read_text_file(service, cur_txt["id"])
+
+    st.markdown(f'<div class="arabic-text">{text_content}</div>', unsafe_allow_html=True)
 
     # ── Sidebar
     with st.sidebar:
