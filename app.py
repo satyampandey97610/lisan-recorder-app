@@ -542,7 +542,6 @@ def show_recorder():
                     try:
                         with st.spinner(f"Uploading {final_name}..."):
                             drive_upload_audio(service, audio_bytes, final_name, audios_folder_id, "audio/wav")
-                            get_text_files.clear()
                             get_audio_files.clear()
                         st.success("✅ Saved!")
                         nxt = next((i for i, tf in enumerate(text_files) if tf["name"] not in done_set and i != idx), None)
@@ -558,7 +557,7 @@ def show_recorder():
 
     # ── Text Display
     with st.spinner("Loading text..."):
-        text_content = drive_read_text_file(service, cur_txt["id"])
+        text_content = get_text_content(cur_txt["id"])
 
     st.markdown(f'<div class="arabic-text">{text_content}</div>', unsafe_allow_html=True)
 
@@ -622,6 +621,28 @@ def admin_get_audio_bytes(service, file_id):
     while not done:
         _, done = downloader.next_chunk()
     return buf.getvalue()
+
+@st.cache_data(ttl=86400)
+def get_text_content(file_id):
+    """Cached text file reader to avoid slow synchronous API calls."""
+    for attempt in range(3):
+        try:
+            service = get_drive_service()
+            return drive_read_text_file(service, file_id)
+        except Exception as e:
+            if attempt == 2: raise e
+            time.sleep(1)
+
+@st.cache_data(ttl=3600)
+def get_audio_bytes_cached(file_id):
+    """Cached audio downloader for admin panel to prevent sequential blocking."""
+    for attempt in range(3):
+        try:
+            service = get_drive_service()
+            return admin_get_audio_bytes(service, file_id)
+        except Exception as e:
+            if attempt == 2: raise e
+            time.sleep(1)
 
 # ═════════════════════════════════════════════════════════════════════════════
 # ADMIN CSS
@@ -735,7 +756,7 @@ def show_admin_recorder_detail(uid):
 
             with col_audio:
                 try:
-                    audio_bytes = admin_get_audio_bytes(service, af["id"])
+                    audio_bytes = get_audio_bytes_cached(af["id"])
                     st.audio(audio_bytes)
                 except Exception as e:
                     st.warning(f"Cannot load audio: {e}")
@@ -769,7 +790,7 @@ def show_admin_recorder_detail(uid):
             for t in texts:
                 if Path(t["name"]).stem == stem:
                     try:
-                        t_content = drive_read_text_file(service, t["id"])
+                        t_content = get_text_content(t["id"])
                         st.markdown(f'<div dir="rtl" class="arabic-text" style="font-size:1.1rem; background:#fff; padding:10px; margin-bottom:15px; border-radius:5px; border:1px solid #e5e7eb;">{t_content}</div>', unsafe_allow_html=True)
                     except:
                         pass
