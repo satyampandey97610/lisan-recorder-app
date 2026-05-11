@@ -162,7 +162,13 @@ def drive_upload_audio(service, audio_bytes, filename, folder_id, mime_type="aud
 
 def drive_delete_file(service, file_id):
     """Permanently delete a file from Drive (used on reject)."""
-    service.files().delete(fileId=file_id).execute()
+    for attempt in range(3):
+        try:
+            service.files().delete(fileId=file_id).execute()
+            return
+        except Exception as e:
+            if attempt == 2: raise e
+            time.sleep(1)
 
 
 # ─────────────────────────────────────────────────────────────────────────────
@@ -582,35 +588,46 @@ REVIEW_FILENAME = "_review_status.json"
 
 def admin_load_review(service, audios_folder_id):
     """Load the review JSON from Drive. Returns dict {stem: 'approved'|'rejected'}."""
-    q = f"'{audios_folder_id}' in parents and name='{REVIEW_FILENAME}' and trashed=false"
-    res = service.files().list(q=q, fields="files(id)").execute()
-    files = res.get("files", [])
-    if not files:
-        return {}
-    fid = files[0]["id"]
-    request = service.files().get_media(fileId=fid)
-    buf = io.BytesIO()
-    downloader = MediaIoBaseDownload(buf, request)
-    done = False
-    while not done:
-        _, done = downloader.next_chunk()
-    try:
-        return json.loads(buf.getvalue().decode("utf-8"))
-    except Exception:
-        return {}
+    for attempt in range(3):
+        try:
+            q = f"'{audios_folder_id}' in parents and name='{REVIEW_FILENAME}' and trashed=false"
+            res = service.files().list(q=q, fields="files(id)").execute()
+            files = res.get("files", [])
+            if not files:
+                return {}
+            fid = files[0]["id"]
+            request = service.files().get_media(fileId=fid)
+            buf = io.BytesIO()
+            downloader = MediaIoBaseDownload(buf, request)
+            done = False
+            while not done:
+                _, done = downloader.next_chunk()
+            try:
+                return json.loads(buf.getvalue().decode("utf-8"))
+            except Exception:
+                return {}
+        except Exception as e:
+            if attempt == 2: return {}
+            time.sleep(1)
 
 def admin_save_review(service, audios_folder_id, review_dict):
     """Save/overwrite the review JSON file in Drive."""
-    data = json.dumps(review_dict, indent=2).encode("utf-8")
-    q = f"'{audios_folder_id}' in parents and name='{REVIEW_FILENAME}' and trashed=false"
-    res = service.files().list(q=q, fields="files(id)").execute()
-    files = res.get("files", [])
-    media = MediaIoBaseUpload(io.BytesIO(data), mimetype="application/json", resumable=False)
-    if files:
-        service.files().update(fileId=files[0]["id"], media_body=media).execute()
-    else:
-        meta = {"name": REVIEW_FILENAME, "parents": [audios_folder_id]}
-        service.files().create(body=meta, media_body=media, fields="id").execute()
+    for attempt in range(3):
+        try:
+            data = json.dumps(review_dict, indent=2).encode("utf-8")
+            q = f"'{audios_folder_id}' in parents and name='{REVIEW_FILENAME}' and trashed=false"
+            res = service.files().list(q=q, fields="files(id)").execute()
+            files = res.get("files", [])
+            media = MediaIoBaseUpload(io.BytesIO(data), mimetype="application/json", resumable=False)
+            if files:
+                service.files().update(fileId=files[0]["id"], media_body=media).execute()
+            else:
+                meta = {"name": REVIEW_FILENAME, "parents": [audios_folder_id]}
+                service.files().create(body=meta, media_body=media, fields="id").execute()
+            return
+        except Exception as e:
+            if attempt == 2: raise e
+            time.sleep(1)
 
 def admin_get_audio_bytes(service, file_id):
     """Stream audio bytes from Drive for playback."""
@@ -783,6 +800,7 @@ def show_admin_recorder_detail(uid):
                     review.pop(stem, None)
                     admin_save_review(service, audios_folder_id, review)
                     get_audio_files.clear()
+                    time.sleep(1.5)  # Wait for Drive index to catch up
                     st.rerun()
 
             st.markdown('</div>', unsafe_allow_html=True)
@@ -815,6 +833,7 @@ def show_admin_recorder_detail(uid):
             # Clear review JSON entries for deleted files
             admin_save_review(service, audios_folder_id, {})
             get_audio_files.clear()
+            time.sleep(1.5)  # Wait for Drive index to catch up
             st.rerun()
     with col_reset:
         if st.button("↺ Reset ALL to Pending", key=f"reset_all_{uid}", use_container_width=True):
