@@ -93,12 +93,19 @@ def get_drive_service():
 
 def drive_find_folder(service, name, parent_id=None):
     """Find a folder by name, optionally inside a parent."""
-    q = f"name='{name}' and mimeType='application/vnd.google-apps.folder' and trashed=false"
+    # Escape single quotes in folder name for Drive API query
+    safe_name = name.replace("'", "\\'")
+    q = f"name='{safe_name}' and mimeType='application/vnd.google-apps.folder' and trashed=false"
     if parent_id:
-        q += f" and '{parent_id}' in parents"
-    res = service.files().list(q=q, fields="files(id,name)", spaces="drive").execute()
-    files = res.get("files", [])
-    return files[0]["id"] if files else None
+        safe_parent = parent_id.replace("'", "\\'")
+        q += f" and '{safe_parent}' in parents"
+    try:
+        res = service.files().list(q=q, fields="files(id,name)", spaces="drive").execute()
+        files = res.get("files", [])
+        return files[0]["id"] if files else None
+    except Exception as e:
+        print(f"[DEBUG] drive_find_folder error for '{name}': {e}")
+        return None
 
 def drive_create_folder(service, name, parent_id=None):
     """Create a folder in Drive."""
@@ -116,15 +123,24 @@ def drive_get_or_create_folder(service, name, parent_id=None):
 
 def drive_list_files(service, folder_id, extension=".txt"):
     """List files in a folder with given extension."""
-    q = f"'{folder_id}' in parents and trashed=false and name contains '{extension}'"
+    safe_folder = folder_id.replace("'", "\\'")
+    if extension:
+        safe_ext = extension.replace("'", "\\'")
+        q = f"'{safe_folder}' in parents and trashed=false and name contains '{safe_ext}'"
+    else:
+        # For audio files with no specific extension
+        q = f"'{safe_folder}' in parents and trashed=false"
     files = []
     page_token = None
-    while True:
-        res = service.files().list(q=q, fields="nextPageToken, files(id,name)", orderBy="name", pageSize=1000, pageToken=page_token).execute()
-        files.extend(res.get("files", []))
-        page_token = res.get("nextPageToken", None)
-        if page_token is None:
-            break
+    try:
+        while True:
+            res = service.files().list(q=q, fields="nextPageToken, files(id,name)", orderBy="name", pageSize=1000, pageToken=page_token).execute()
+            files.extend(res.get("files", []))
+            page_token = res.get("nextPageToken", None)
+            if page_token is None:
+                break
+    except Exception as e:
+        print(f"[DEBUG] drive_list_files error for folder '{folder_id}': {e}")
     return files
 
 def drive_read_text_file(service, file_id):
@@ -139,31 +155,43 @@ def drive_read_text_file(service, file_id):
 
 def drive_file_exists(service, folder_id, filename):
     """Check if a file already exists in a folder."""
-    q = f"'{folder_id}' in parents and name='{filename}' and trashed=false"
-    res = service.files().list(q=q, fields="files(id,name)").execute()
-    return len(res.get("files", [])) > 0
+    safe_folder = folder_id.replace("'", "\\'")
+    safe_filename = filename.replace("'", "\\'")
+    q = f"'{safe_folder}' in parents and name='{safe_filename}' and trashed=false"
+    try:
+        res = service.files().list(q=q, fields="files(id,name)").execute()
+        return len(res.get("files", [])) > 0
+    except Exception as e:
+        print(f"[DEBUG] drive_file_exists error: {e}")
+        return False
 
 def drive_upload_audio(service, audio_bytes, filename, folder_id, mime_type="audio/webm"):
     """Upload audio bytes to a specific Drive folder. Overwrites if exists."""
-    q = f"'{folder_id}' in parents and name='{filename}' and trashed=false"
-    res = service.files().list(q=q, fields="files(id)").execute()
-    existing = res.get("files", [])
-    
-    media = MediaIoBaseUpload(io.BytesIO(audio_bytes), mimetype=mime_type, resumable=False)
-    
-    if existing:
-        # Overwrite the first existing file
-        file = service.files().update(fileId=existing[0]["id"], media_body=media, fields="id,name").execute()
-        # Clean up any accidental duplicates
-        for dup in existing[1:]:
-            try: service.files().delete(fileId=dup["id"]).execute()
-            except: pass
-        return file
-    else:
-        # Create new
-        meta = {"name": filename, "parents": [folder_id]}
-        file = service.files().create(body=meta, media_body=media, fields="id,name").execute()
-        return file
+    safe_folder = folder_id.replace("'", "\\'")
+    safe_filename = filename.replace("'", "\\'")
+    q = f"'{safe_folder}' in parents and name='{safe_filename}' and trashed=false"
+    try:
+        res = service.files().list(q=q, fields="files(id)").execute()
+        existing = res.get("files", [])
+        
+        media = MediaIoBaseUpload(io.BytesIO(audio_bytes), mimetype=mime_type, resumable=False)
+        
+        if existing:
+            # Overwrite the first existing file
+            file = service.files().update(fileId=existing[0]["id"], media_body=media, fields="id,name").execute()
+            # Clean up any accidental duplicates
+            for dup in existing[1:]:
+                try: service.files().delete(fileId=dup["id"]).execute()
+                except: pass
+            return file
+        else:
+            # Create new
+            meta = {"name": filename, "parents": [folder_id]}
+            file = service.files().create(body=meta, media_body=media, fields="id,name").execute()
+            return file
+    except Exception as e:
+        print(f"[DEBUG] drive_upload_audio error: {e}")
+        raise
 
 def drive_delete_file(service, file_id):
     """Permanently delete a file from Drive (used on reject)."""
@@ -458,10 +486,17 @@ def show_recorder():
     user    = USERS[user_id]
 
     # ── get Drive folder IDs
-    with st.spinner("Connecting..."):
-        _, user_folder_id, texts_folder_id, audios_folder_id = get_folder_ids(user["folder"])
-        text_files = get_text_files(texts_folder_id)
-        audio_files = get_audio_files(audios_folder_id)
+    try:
+        with st.spinner("Connecting..."):
+            _, user_folder_id, texts_folder_id, audios_folder_id = get_folder_ids(user["folder"])
+            text_files = get_text_files(texts_folder_id)
+            audio_files = get_audio_files(audios_folder_id)
+    except Exception as e:
+        st.error(f"Google Drive data retrieval failed: {e}")
+        if st.button("Logout"):
+            st.session_state.logged_in = False
+            st.rerun()
+        return
 
     if not text_files:
         st.warning("No text files found in your Drive texts folder. Ask admin to upload them.")
@@ -606,7 +641,9 @@ def admin_load_review(service, audios_folder_id):
     """Load the review JSON from Drive. Returns dict {stem: 'approved'|'rejected'}."""
     for attempt in range(3):
         try:
-            q = f"'{audios_folder_id}' in parents and name='{REVIEW_FILENAME}' and trashed=false"
+            safe_folder = audios_folder_id.replace("'", "\\'")
+            safe_filename = REVIEW_FILENAME.replace("'", "\\'")
+            q = f"'{safe_folder}' in parents and name='{safe_filename}' and trashed=false"
             res = service.files().list(q=q, fields="files(id)").execute()
             files = res.get("files", [])
             if not files:
@@ -623,7 +660,9 @@ def admin_load_review(service, audios_folder_id):
             except Exception:
                 return {}
         except Exception as e:
-            if attempt == 2: return {}
+            if attempt == 2: 
+                print(f"[DEBUG] admin_load_review error: {e}")
+                return {}
             time.sleep(1)
 
 def admin_save_review(service, audios_folder_id, review_dict):
@@ -631,7 +670,9 @@ def admin_save_review(service, audios_folder_id, review_dict):
     for attempt in range(3):
         try:
             data = json.dumps(review_dict, indent=2).encode("utf-8")
-            q = f"'{audios_folder_id}' in parents and name='{REVIEW_FILENAME}' and trashed=false"
+            safe_folder = audios_folder_id.replace("'", "\\'")
+            safe_filename = REVIEW_FILENAME.replace("'", "\\'")
+            q = f"'{safe_folder}' in parents and name='{safe_filename}' and trashed=false"
             res = service.files().list(q=q, fields="files(id)").execute()
             files = res.get("files", [])
             media = MediaIoBaseUpload(io.BytesIO(data), mimetype="application/json", resumable=False)
@@ -642,7 +683,9 @@ def admin_save_review(service, audios_folder_id, review_dict):
                 service.files().create(body=meta, media_body=media, fields="id").execute()
             return
         except Exception as e:
-            if attempt == 2: raise e
+            if attempt == 2: 
+                print(f"[DEBUG] admin_save_review error: {e}")
+                raise e
             time.sleep(1)
 
 def admin_get_audio_bytes(service, file_id):
