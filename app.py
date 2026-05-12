@@ -1,7 +1,5 @@
 import streamlit as st
 import os
-os.environ["REQUESTS_CA_BUNDLE"] = ""
-os.environ["CURL_CA_BUNDLE"] = ""
 import hashlib
 import json
 import io
@@ -56,34 +54,41 @@ USERS = {
 
 # ─────────────────────────────────────────────────────────────────────────────
 # GOOGLE DRIVE  — reads credentials from Streamlit secrets
-# In Streamlit Cloud: Settings → Secrets → paste your service account JSON
-# Locally: create .streamlit/secrets.toml with [gcp_service_account] section
+# In Streamlit Cloud: Settings → Secrets → paste your OAuth credentials
+# Locally: create .streamlit/secrets.toml with [oauth_credentials] section
 # ─────────────────────────────────────────────────────────────────────────────
 ROOT_FOLDER_NAME = "TRANSCRIBER_DATASET"   # The folder you created in your Drive
 
 @st.cache_resource
 def get_drive_service():
     """
-    Authenticates as the Drive OWNER using OAuth2 refresh token.
-    This means files are uploaded to the owner's Drive with their quota.
-    Works with free Gmail — no Google Workspace needed.
+    Authenticates to Google Drive using OAuth2 refresh token.
 
     secrets.toml must have:
-    [oauth_credentials]
-    client_id     = "..."
-    client_secret = "..."
-    refresh_token = "..."
+      [oauth_credentials]
+      client_id     = "..."
+      client_secret = "..."
+      refresh_token = "..."
     """
+    if "oauth_credentials" not in st.secrets:
+        raise RuntimeError(
+            "Missing Google Drive OAuth credentials. Add [oauth_credentials] to .streamlit/secrets.toml."
+        )
+
     o = dict(st.secrets["oauth_credentials"])
     creds = Credentials(
         token=None,
-        refresh_token=o["refresh_token"],
-        client_id=o["client_id"],
-        client_secret=o["client_secret"],
+        refresh_token=o.get("refresh_token"),
+        client_id=o.get("client_id"),
+        client_secret=o.get("client_secret"),
         token_uri="https://oauth2.googleapis.com/token",
         scopes=["https://www.googleapis.com/auth/drive"]
     )
-    creds.refresh(Request())   # get a fresh access token
+    try:
+        creds.refresh(Request())   # get a fresh access token
+    except Exception as e:
+        raise RuntimeError(f"Google Drive OAuth refresh failed: {e}") from e
+
     return build("drive", "v3", credentials=creds)
 
 def drive_find_folder(service, name, parent_id=None):
@@ -440,7 +445,15 @@ def show_login():
 # RECORDER PAGE
 # ═════════════════════════════════════════════════════════════════════════════
 def show_recorder():
-    service = get_drive_service()
+    try:
+        service = get_drive_service()
+    except Exception as e:
+        st.error(f"Google Drive connection error: {e}")
+        if st.button("Logout"):
+            st.session_state.logged_in = False
+            st.rerun()
+        return
+
     user_id = st.session_state.user_id
     user    = USERS[user_id]
 
@@ -562,10 +575,13 @@ def show_recorder():
                     st.rerun()
 
     # ── Text Display
-    with st.spinner("Loading text..."):
-        text_content = get_text_content(cur_txt["id"])
-
-    st.markdown(f'<div class="arabic-text">{text_content}</div>', unsafe_allow_html=True)
+    try:
+        with st.spinner("Loading text..."):
+            text_content = get_text_content(cur_txt["id"])
+        st.markdown(f'<div class="arabic-text">{text_content}</div>', unsafe_allow_html=True)
+    except Exception as e:
+        st.error(f"Unable to load text content: {e}")
+        return
 
     # ── Sidebar
     with st.sidebar:
@@ -700,7 +716,15 @@ st.markdown("""
 # ═════════════════════════════════════════════════════════════════════════════
 def show_admin_recorder_detail(uid):
     """Full detail view for one recorder: all audios, playback, approve/reject."""
-    service = get_drive_service()
+    try:
+        service = get_drive_service()
+    except Exception as e:
+        st.error(f"Google Drive connection error: {e}")
+        if st.button("← Back to Dashboard", key="admin_back"):
+            st.session_state.admin_selected = None
+            st.rerun()
+        return
+
     user = USERS[uid]
 
     # ── back button
@@ -855,7 +879,16 @@ def show_admin():
         return
 
     # ── header
-    service = get_drive_service()
+    try:
+        service = get_drive_service()
+    except Exception as e:
+        st.error(f"Google Drive connection error: {e}")
+        if st.button("Logout", key="admin_logout"):
+            st.session_state.logged_in = False
+            st.session_state.user_id = None
+            st.session_state.admin_selected = None
+            st.rerun()
+        return
     c_title, c_logout = st.columns([5, 1])
     with c_title:
         st.markdown('<div class="title-main">Admin Dashboard</div>', unsafe_allow_html=True)
@@ -948,4 +981,4 @@ else:
     if USERS[uid].get("is_admin"):
         show_admin()
     else:
-        show_recorder()
+        show_recorder()
